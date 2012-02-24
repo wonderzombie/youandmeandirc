@@ -10,55 +10,46 @@ import (
 	"net"
 	"strings"
 	"time"
+	irclib "youandmeandirc"
 )
 
-const (
-	host = "home.zole.org"
-	port = "6667"
-	user = "trahari"
-	nick = "trago"
-)
 
-type Message struct {
-	Raw string
-	Command string // e.g. PRIVMSG
-	Server string
-	Id string
-}
-
-func NewMessage(msg string) (m *Message) {
-	m = new(Message)
-	m.Raw = msg
-	return
-}
-
-type UserInfo struct {
-	username, nick, pass, realname string
-}
-
-//
+// IrcConn represents a connection to an IRC server.
 type IrcConn struct {
 	conn net.Conn
-	host, port string
-	user UserInfo
 	reader *bufio.Reader
+
+	host, port string
+
+	nick string
+	passwd string
+	realname string
+	username string
 }
 
-func Connect(c net.Conn, u UserInfo) (irc *IrcConn) {
-	irc = new(IrcConn)
+/// Network-related.
+
+func (irc *IrcConn) Connect(c net.Conn) {
 	irc.conn = c
-	irc.user = u
 	irc.reader = bufio.NewReader(irc.conn)
 	irc.register()
 	return
 }
 
+// send transmits a command to the currently connected server.
+func (irc IrcConn) send(cmd string) (int, error) {
+	fmt.Println("=>", cmd)
+	return fmt.Fprintln(irc.conn, cmd)
+}
+
+// register sends the PASS, NICK, and USER commands.
 func (irc IrcConn) register() {
 	messages := []string {
-		irc.newPassMsg(irc.user),
-		irc.newNickMsg(irc.user),
-		irc.newUserMsg(irc.user),
+		irc.newPassMsg(irc.passwd),
+		irc.newNickMsg(irc.nick),
+		irc.newUserMsg(irc.username, irc.realname),
 	}
+	fmt.Println(messages)
 
 	for _, m := range messages {
 		if _, err := irc.send(m) ; err != nil {
@@ -67,25 +58,22 @@ func (irc IrcConn) register() {
 	}
 }
 
-func (irc IrcConn) newPassMsg(user UserInfo) string {
-	return fmt.Sprintf("PASS %v", user.pass)
+/// Composing various kinds of messages.
+
+func (irc IrcConn) newPassMsg(pass string) string {
+	return fmt.Sprintf("PASS %v", pass)
 }
 
-func (irc IrcConn) newNickMsg(user UserInfo) string {
-	return fmt.Sprintf("NICK %v", user.pass)
+func (irc IrcConn) newNickMsg(nick string) string {
+	return fmt.Sprintf("NICK %v", nick)
 }
 
-func (irc IrcConn) newUserMsg(user UserInfo) string {
-	return fmt.Sprintf("USER %v fakehost fakeserver :%v", user.username, user.realname)
+func (irc IrcConn) newUserMsg(username, realname string) string {
+	return fmt.Sprintf("USER %v * * :%v", username, realname)
 }
 
 func (irc IrcConn) newJoinMsg(channel string) string {
 	return fmt.Sprintf("JOIN %v", channel)
-}
-
-func (irc IrcConn) send(cmd string) (int, error) {
-	fmt.Println("->", cmd)
-	return fmt.Fprintln(irc.conn, cmd)
 }
 
 func (irc IrcConn) newPongMsg(daemon string) string {
@@ -112,6 +100,7 @@ func (irc IrcConn) Read() (s string) {
 	return
 }
 
+// FIXME: shouldn't this be handled automatically?
 func (irc IrcConn) Pong(daemon string) (int, error) {
 	/*bits := strings.Split(msg, " ")*/
 	/*if len(bits) < 2 {*/
@@ -133,7 +122,7 @@ func isChannelMsg(channel, msg string) bool {
 }
 
 func hasMyName(msg string) bool {
-	return strings.Contains(msg, nick)
+	return strings.Contains(msg, *nick)
 }
 
 func readLine(r *bufio.Reader) (s string, err error) {
@@ -146,44 +135,52 @@ func chatFromMsg(msg string) string {
 	return msg[i:]
 }
 
+// Flags.
+var (
+	channel = flag.String("channel", "#testbot", "Channel to join automatically.")
+	nick = flag.String("nick", "gobot", "Nick to use.")
+	pass = flag.String("pass", "", "Password for the server, if any.")
+	username = flag.String("user", "", "Username for identification.")
+	host = flag.String("host", "home.zole.org", "Name of IRC host.")
+	port = flag.String("port", "6667", "Port to connect to on host.")
+)
+
+func init() {
+	flag.Parse()
+}
+
 func main() {
 	fmt.Println("hello youandmeandirc")
 
-	var (
-		pass string
-		channel string
-	)
-	flag.StringVar(&pass, "passwd", "", "Password for the server.")
-	flag.StringVar(&channel, "channel", "", "Channel to join automatically.")
-	flag.Parse()
-
-	addr := net.JoinHostPort(host, port)
+	addr := net.JoinHostPort(*host, *port)
 	timeout, _ := time.ParseDuration("1m")
 
+	irc := &IrcConn{
+		nick: *nick,
+		passwd: *pass,
+		username: *username,
+		realname: "...",
+	}
+	fmt.Println(irc)
 	conn, _ := net.DialTimeout("tcp", addr, timeout)
-	defer conn.Close() // FIXME
+	defer conn.Close() // FIXME: should the IrcConn take ownership?
+	irc.Connect(conn)
 
-	u := UserInfo{username: user, pass: pass, nick: nick, realname: "youandmeandirc"}
-
-	irc := Connect(conn, u)
-
-	/*reader := bufio.NewReader(conn)*/
-	/*writePassMsg(conn, pass)*/
-	/*writeNickMsg(conn, nick)*/
-	/*writeUserMsg(conn, user, "youandmeandirc.go")*/
 	joined := false
 	for {
 		out := irc.Read()
-		fmt.Print("<-", out)
 
-		nickResp := fmt.Sprintf("MODE %v", nick)
+		m, _ := irclib.ParseMessage(out)
+		fmt.Print("<=", m.Raw)
+
+		nickResp := fmt.Sprintf("MODE %v", *nick)
 		if strings.Contains(out, nickResp) && !joined {
-			irc.Join(channel)
+			irc.Join(*channel)
 			joined = true
 		} else if strings.Contains(out, "PING :") {
 			daemon := strings.Split(out, " ")[1]
 			irc.Pong(daemon)
-		} else if isChannelMsg(channel, out) {
+		} else if isChannelMsg(*channel, out) {
 			chat := chatFromMsg(out)
 			if hasMyName(chat) {
 				resp := "zzz"
@@ -192,7 +189,7 @@ func main() {
 				} else if strings.Contains(out, ":ACTION") {
 					resp = "what are you doing"
 				}
-				irc.SendChat(channel, resp)
+				irc.SendChat(*channel, resp)
 			}
 		}
 	}
