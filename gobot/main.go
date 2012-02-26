@@ -96,10 +96,12 @@ func (irc IrcConn) Read() (m *irclib.IrcMessage, err error) {
 	if err != nil {
 		log.Println("Error:", err)
 	}
+
 	m, err = irclib.ParseMessage(s)
 	if err != nil {
 		log.Println("Error:", err)
 	}
+	
 	return
 }
 
@@ -109,27 +111,9 @@ func (irc IrcConn) Pong(daemon string) (int, error) {
 	return irc.send(cmd)
 }
 
-/// Misc methods.
-func isChannelMsg(channel, msg string) bool {
-	expected := fmt.Sprintf("PRIVMSG %v", channel)
-	if !strings.Contains(msg, expected) { 
-		return false 
-	} 
-	return true
-}
-
+// Bot layer.
 func hasMyName(msg string) bool {
 	return strings.Contains(msg, *nick)
-}
-
-func readLine(r *bufio.Reader) (s string, err error) {
-	s, err = r.ReadString('\n')
-	return
-}
-
-func chatFromMsg(msg string) string {
-	i := strings.LastIndex(msg, ":")
-	return msg[i:]
 }
 
 // Flags.
@@ -171,15 +155,18 @@ func main() {
 		}
 
 		fmt.Print("<=", m.Raw)
-		// TODO(wonderzombie): need IrcMessage to help us figure this out more
-		// easily perhaps.
-		if m.Command == "MODE" && strings.Contains(m.Raw, *nick) && !joined {
+
+		if m.Command == "PING" {
+			daemon := m.Params[0]
+			irc.Pong(daemon)
+			continue
+		}
+
+		if !joined && m.Origin == *nick && m.Command == "MODE" {
+			// We've finished connecting. Join the channel.
 			irc.Join(*channel)
 			joined = true
-		} else if strings.Contains(m.Raw, "PING :") {
-			daemon := strings.Split(m.Raw, " ")[1]
-			irc.Pong(daemon)
-		} else if isChannelMsg(*channel, m.Raw) {
+		} else if m.Command == "PRIVMSG" && m.Channel == *channel {
 			if hasMyName(m.Text) {
 				resp := "zzz"
 				if strings.Contains(m.Text, "ACTION") {
