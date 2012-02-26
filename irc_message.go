@@ -1,7 +1,6 @@
 package youandmeandirc
 
 import (
-	// "fmt"
 	"strings"
 )
 
