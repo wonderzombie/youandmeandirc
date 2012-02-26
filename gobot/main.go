@@ -22,7 +22,7 @@ type IrcConn struct {
 	host, port string
 
 	nick string
-	passwd string
+	pass string
 	realname string
 	username string
 }
@@ -37,19 +37,18 @@ func (irc *IrcConn) Connect(c net.Conn) {
 }
 
 // send transmits a command to the currently connected server.
-func (irc IrcConn) send(cmd string) (int, error) {
-	fmt.Println("=>", cmd)
-	return fmt.Fprintln(irc.conn, cmd)
+func (irc IrcConn) send(s string) (int, error) {
+	fmt.Println("=>", s)
+	return fmt.Fprintln(irc.conn, s)
 }
 
 // register sends the PASS, NICK, and USER commands.
 func (irc IrcConn) register() {
 	messages := []string {
-		irc.newPassMsg(irc.passwd),
+		irc.newPassMsg(irc.pass),
 		irc.newNickMsg(irc.nick),
 		irc.newUserMsg(irc.username, irc.realname),
 	}
-	fmt.Println(messages)
 
 	for _, m := range messages {
 		if _, err := irc.send(m) ; err != nil {
@@ -82,7 +81,7 @@ func (irc IrcConn) newPongMsg(daemon string) string {
 
 /// Public methods.
 
-func (irc IrcConn) SendChat(channel, chat string) (int, error) {
+func (irc IrcConn) Say(channel, chat string) (int, error) {
 	msg := fmt.Sprintf("PRIVMSG %v :%v", channel, chat)
 	return irc.send(msg)	
 }
@@ -92,22 +91,20 @@ func (irc IrcConn) Join(channel string) (int, error) {
 	return irc.send(cmd)	
 }
 
-func (irc IrcConn) Read() (s string) {
+func (irc IrcConn) Read() (m *irclib.IrcMessage, err error) {
 	s, err := irc.reader.ReadString('\n')
+	if err != nil {
+		log.Println("Error:", err)
+	}
+	m, err = irclib.ParseMessage(s)
 	if err != nil {
 		log.Println("Error:", err)
 	}
 	return
 }
 
-// FIXME: shouldn't this be handled automatically?
 func (irc IrcConn) Pong(daemon string) (int, error) {
-	/*bits := strings.Split(msg, " ")*/
-	/*if len(bits) < 2 {*/
-		/*log.Println("Invalid PONG message:", msg)*/
-		/*return 0, *new(error)*/
-	/*}*/
-
+	// FIXME: shouldn't this be handled automatically?
 	cmd := irc.newPongMsg(daemon)
 	return irc.send(cmd)
 }
@@ -157,39 +154,40 @@ func main() {
 
 	irc := &IrcConn{
 		nick: *nick,
-		passwd: *pass,
+		pass: *pass,
 		username: *username,
 		realname: "...",
 	}
-	fmt.Println(irc)
 	conn, _ := net.DialTimeout("tcp", addr, timeout)
 	defer conn.Close() // FIXME: should the IrcConn take ownership?
 	irc.Connect(conn)
 
 	joined := false
 	for {
-		out := irc.Read()
+		m, err := irc.Read()
+		if err != nil {
+			fmt.Println("Skipping message: ", m.Raw)
+			continue
+		}
 
-		m, _ := irclib.ParseMessage(out)
 		fmt.Print("<=", m.Raw)
-
-		nickResp := fmt.Sprintf("MODE %v", *nick)
-		if strings.Contains(out, nickResp) && !joined {
+		// TODO(wonderzombie): need IrcMessage to help us figure this out more
+		// easily perhaps.
+		if m.Command == "MODE" && strings.Contains(m.Raw, *nick) && !joined {
 			irc.Join(*channel)
 			joined = true
-		} else if strings.Contains(out, "PING :") {
-			daemon := strings.Split(out, " ")[1]
+		} else if strings.Contains(m.Raw, "PING :") {
+			daemon := strings.Split(m.Raw, " ")[1]
 			irc.Pong(daemon)
-		} else if isChannelMsg(*channel, out) {
-			chat := chatFromMsg(out)
-			if hasMyName(chat) {
+		} else if isChannelMsg(*channel, m.Raw) {
+			if hasMyName(m.Text) {
 				resp := "zzz"
-				if strings.Contains(out, "bethday") {
-					resp = "bethday sux"
-				} else if strings.Contains(out, ":ACTION") {
+				if strings.Contains(m.Text, "ACTION") {
 					resp = "what are you doing"
+				} else if m.Origin == "trapro" {
+					resp = "trapro sux"
 				}
-				irc.SendChat(*channel, resp)
+				irc.Say(*channel, resp)
 			}
 		}
 	}
