@@ -37,9 +37,9 @@ func main() {
 	timeout, _ := time.ParseDuration("1m")
 
 	irc := &irclib.IrcConn{
-		Nick: *nick,
-		Pass: *pass,
 		Username: *username,
+		Pass: *pass,
+		Nick: *nick,
 		Realname: "...",
 	}
 	// TODO(wonderzombie): Fix this so that IrcConn takes a closure, or something

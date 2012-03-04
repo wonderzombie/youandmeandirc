@@ -5,44 +5,19 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strings"
 )
 
 // IrcConn represents a connection to an IRC server.
 type IrcConn struct {
+	Username string
+	Pass string
+	Nick string
+	Realname string
+
 	conn net.Conn
 	reader *bufio.Reader
 
 	host, port string
-
-	Nick string
-	Pass string
-	Realname string
-	Username string
-}
-
-// Constants which describe the format of various client-to-server commands.
-const (
-	JOIN = iota
-	NICK
-	PASS
-	PONG
-	PRIVMSG
-	USER
-)
-
-var CommandMap = []string{
-	"%v",
-	"%v",
-	"%v",
-	"%v",
-	"%v :%v",
-	"%v * * :%v",
-}
-
-func (irc *IrcConn) commandForType(t int, args ...string) string {
-	format := CommandMap[t]
-	return fmt.Sprintf(format, args)
 }
 
 /// Network-related.
