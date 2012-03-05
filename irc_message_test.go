@@ -5,18 +5,18 @@ import (
 )
 
 type IrcMessageTest struct {
-	in string
+	in      string
 	command string
-	origin string
+	origin  string
 	channel string
-	text string
+	text    string
 }
 
-var tests = []IrcMessageTest { 
-  {":server NOTICE AUTH", "NOTICE", "server", "", ""},
-  {":nick!~username@host PRIVMSG #channel :chat chat chat", "PRIVMSG", "nick", "#channel", "chat chat chat"},
-  {":server PING", "PING", "server", "", ""},
-  {":nick!~username@host PRIVMSG #channel :ACTION emote", "PRIVMSG", "nick", "#channel", "ACTION emote"},
+var tests = []IrcMessageTest{
+	{":server NOTICE AUTH", "NOTICE", "server", "", ""},
+	{":nick!~username@host PRIVMSG #channel :chat chat chat", "PRIVMSG", "nick", "#channel", "chat chat chat"},
+	{":server PING", "PING", "server", "", ""},
+	{":nick!~username@host PRIVMSG #channel :ACTION emote", "PRIVMSG", "nick", "#channel", "ACTION emote"},
 	{":trapro!~trahari@75-145-17-54-Washington.hfc.comcastbusiness.net PRIVMSG gobot :HELLO", "PRIVMSG", "trapro", "", "HELLO"},
 }
 

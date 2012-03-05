@@ -6,18 +6,18 @@ import (
 
 // IrcMessage is a structured representation of an IRC message.
 type IrcMessage struct {
-	Raw string
+	Raw     string
 	Command string
-	Channel string // Channel which the message belongs to, if any.
-	Origin string // Nick or server which originated the message.
-	Text string // Text of the chat.
-	Params []string // Misc params.
-	Target []string
+	Channel string   // Channel which the message belongs to, if any.
+	Origin  string   // Nick or server which originated the message.
+	Text    string   // Text of the chat.
+	Params  []string // Misc params.
+	Target  []string
 }
 
 // IrcMessageError is returned when an IRC message cannot be parsed.
 type IrcMessageError struct {
-	Raw string // the offending message
+	Raw    string // the offending message
 	Reason string // reason for the error
 }
 
@@ -27,8 +27,8 @@ func (e *IrcMessageError) Error() string {
 
 // ParseMessage returns a new IrcMessage populated with the data from a raw IRC message.
 func ParseMessage(msg string) (*IrcMessage, error) {
-	m := new(IrcMessage)		
-	if err := m.init(msg) ; err != nil {
+	m := new(IrcMessage)
+	if err := m.init(msg); err != nil {
 		return nil, err
 	}
 	return m, nil

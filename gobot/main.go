@@ -1,15 +1,13 @@
-
 package main
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"net"
 	"strings"
 	"time"
 	irclib "youandmeandirc"
 )
-
 
 // Bot layer.
 func hasMyName(msg string) bool {
@@ -18,12 +16,12 @@ func hasMyName(msg string) bool {
 
 // Flags.
 var (
-	channel = flag.String("channel", "#testbot", "Channel to join automatically.")
-	nick = flag.String("nick", "gobot", "Nick to use.")
-	pass = flag.String("pass", "", "Password for the server, if any.")
+	channel  = flag.String("channel", "#testbot", "Channel to join automatically.")
+	nick     = flag.String("nick", "gobot", "Nick to use.")
+	pass     = flag.String("pass", "", "Password for the server, if any.")
 	username = flag.String("user", "", "Username for identification.")
-	host = flag.String("host", "home.zole.org", "Name of IRC host.")
-	port = flag.String("port", "6667", "Port to connect to on host.")
+	host     = flag.String("host", "home.zole.org", "Name of IRC host.")
+	port     = flag.String("port", "6667", "Port to connect to on host.")
 )
 
 func init() {
@@ -38,8 +36,8 @@ func main() {
 
 	irc := &irclib.IrcConn{
 		Username: *username,
-		Pass: *pass,
-		Nick: *nick,
+		Pass:     *pass,
+		Nick:     *nick,
 		Realname: "...",
 	}
 	// TODO(wonderzombie): Fix this so that IrcConn takes a closure, or something
