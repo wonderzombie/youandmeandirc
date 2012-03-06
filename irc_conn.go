@@ -14,8 +14,6 @@ type IrcConn struct {
 	Nick     string
 	Realname string
 
-	listeners []Listener
-
 	conn   net.Conn
 	reader *bufio.Reader
 
@@ -45,7 +43,7 @@ func (irc IrcConn) register() {
 	}
 }
 
-func (irc IrcConn) pong(daemon string) (int, error) {
+func (irc IrcConn) Pong(daemon string) (int, error) {
 	// FIXME: shouldn't this be handled automatically?
 	cmd := irc.newPongMsg(daemon)
 	return irc.send(cmd)
@@ -108,12 +106,4 @@ func (irc *IrcConn) Connect(c net.Conn) {
 	irc.reader = bufio.NewReader(irc.conn)
 	irc.register()
 	return
-}
-
-// A Listener is called every time a message occurs.
-type Listener func(msg string) (fired, trap bool)
-
-// Listen enters a listener into the list of them.
-func (irc IrcConn) Listen(l Listener) {
-	irc.listeners = append(irc.listeners, l)
 }
