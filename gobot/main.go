@@ -2,11 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	irclib "github.com/wonderzombie/youandmeandirc"
+	"log"
 	"net"
 	"strings"
 	"time"
-	irclib "youandmeandirc"
 )
 
 // Bot layer.
@@ -28,9 +28,7 @@ func init() {
 	flag.Parse()
 }
 
-func main() {
-	fmt.Println("hello youandmeandirc")
-
+func defaultMain() {
 	addr := net.JoinHostPort(*host, *port)
 	timeout, _ := time.ParseDuration("1m")
 
@@ -50,11 +48,11 @@ func main() {
 	for {
 		m, err := irc.Read()
 		if err != nil {
-			fmt.Println("Skipping message: ", m.Raw)
+			log.Println("Skipping message: ", m.Raw)
 			continue
 		}
 
-		fmt.Print("<=", m.Raw)
+		log.Print("<=", m.Raw)
 
 		if m.Command == "PING" {
 			daemon := m.Params[0]
@@ -78,4 +76,35 @@ func main() {
 			}
 		}
 	}
+}
+
+func botMain() {
+
+}
+
+func main() {
+	log.Println("hello youandmeandirc")
+
+	bot, err := irclib.NewBot()
+	if err != nil {
+		log.Fatalf("Unable to create bot:", err)
+	}
+
+	addr := net.JoinHostPort(*host, *port)
+	timeout, _ := time.ParseDuration("1m")
+
+	irc := &irclib.IrcConn{
+		Username: *username,
+		Pass:     *pass,
+		Nick:     *nick,
+		Realname: "...",
+	}
+
+	// TODO(wonderzombie): Fix this so that IrcConn takes a closure, or something
+	// which can generate net.Conn items for it.
+	conn, _ := net.DialTimeout("tcp", addr, timeout)
+	defer conn.Close()
+	irc.Connect(conn)
+
+	bot.Start(irc)
 }

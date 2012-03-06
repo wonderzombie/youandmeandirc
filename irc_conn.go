@@ -43,12 +43,6 @@ func (irc IrcConn) register() {
 	}
 }
 
-func (irc IrcConn) Pong(daemon string) (int, error) {
-	// FIXME: shouldn't this be handled automatically?
-	cmd := irc.newPongMsg(daemon)
-	return irc.send(cmd)
-}
-
 /// Composing various kinds of messages.
 
 func (irc IrcConn) newPassMsg(pass string) string {
@@ -88,16 +82,25 @@ func (irc IrcConn) Join(channel string) (int, error) {
 // Reads a single message from the server's output.
 func (irc IrcConn) Read() (m *IrcMessage, err error) {
 	s, err := irc.reader.ReadString('\n')
+	log.Println("<=", s)
 	if err != nil {
-		log.Println("Error:", err)
+		log.Println("Error reading from server:", err)
+		return nil, err
 	}
 
 	m, err = ParseMessage(s)
 	if err != nil {
-		log.Println("Error:", err)
+		log.Println("Error parsing server message:", err)
+		return nil, err
 	}
 
 	return
+}
+
+func (irc IrcConn) Pong(daemon string) (int, error) {
+	// FIXME: shouldn't this be handled automatically?
+	cmd := irc.newPongMsg(daemon)
+	return irc.send(cmd)
 }
 
 // Connects to IRC with the given connection.

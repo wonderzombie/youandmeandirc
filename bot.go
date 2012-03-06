@@ -2,10 +2,13 @@ package youandmeandirc
 
 import (
 	"log"
+	"math/rand"
+	"strings"
+	"time"
 )
 
 type IrcBot struct {
-	conn      *IrcConn
+	irc       *IrcConn
 	listeners []Listener
 	connectFn ConnectFn
 
@@ -13,39 +16,12 @@ type IrcBot struct {
 }
 
 // ConnectFn is used to generate connections.
-type ConnectFn func() *IrcConn
+type ConnectFn func() (*IrcConn, error)
 
 // Listeners are called when a message arrives. The first return value
 // indicates whether the message caused the listener to fire. The second return
 // value indicates whether this listener requires no other listeners to fire.
 type Listener func(msg IrcMessage) (fired, trap bool)
-
-func (bot *IrcBot) Start(fn ConnectFn) {
-	bot.connectFn = fn
-	bot.conn = bot.connectFn()
-
-	// Join channels.
-	for _, ch := range bot.channels {
-		bot.conn.Join(ch)
-	}
-
-	for {
-		m, err := bot.conn.Read()
-
-		if err != nil {
-			log.Println("Skipping message: ", m.Raw)
-			continue
-		}
-
-		log.Println("<=", m.Raw)
-
-		bot.runListeners(*m)
-	}
-}
-
-func (bot *IrcBot) registerListener(l Listener) {
-	bot.listeners = append(bot.listeners, l)
-}
 
 func (bot *IrcBot) runListeners(msg IrcMessage) {
 	for _, l := range bot.listeners {
@@ -54,6 +30,17 @@ func (bot *IrcBot) runListeners(msg IrcMessage) {
 			return
 		}
 	}
+}
+
+func (bot *IrcBot) pingListener() (pong Listener) {
+	pong = func(msg IrcMessage) (fired, trap bool) {
+		if msg.Command == "PING" {
+			bot.irc.Pong(msg.Origin)
+			fired, trap = true, true
+		}
+		return
+	}
+	return
 }
 
 func (bot *IrcBot) seenListener() (seen Listener) {
@@ -74,6 +61,64 @@ func (bot *IrcBot) seenListener() (seen Listener) {
 }
 
 func (bot *IrcBot) init() (e error) {
-	bot.channels = []string{"#testbot"}
+	bot.listeners = []Listener{
+		bot.pingListener(),
+		bot.onNameListener(),
+		bot.seenListener(),
+	}
+	return nil
+}
+
+func (bot *IrcBot) onNameListener() (onName Listener) {
+	sayings := []string{
+		"What? No",
+		"I kissed a boy today.",
+	}
+
+	src := rand.NewSource(time.Now().UnixNano())
+	rng := rand.New(src)
+	max := len(sayings)
+
+	onName = func(msg IrcMessage) (fired, trap bool) {
+		if !strings.Contains(msg.Text, bot.irc.Nick) {
+			return
+		}
+
+		fired = true
+		trap = true
+		choice := rng.Int() % max
+
+		bot.irc.Say(msg.Channel, sayings[choice])
+		return
+	}
 	return
+}
+
+// Creates a new bot.
+func NewBot() (*IrcBot, error) {
+	bot := new(IrcBot)
+	if err := bot.init(); err != nil {
+		return nil, err
+	}
+	return bot, nil
+}
+
+// Starts a bot running.
+func (bot *IrcBot) Start(ircConn *IrcConn) {
+	bot.irc = ircConn
+	joined := false
+
+	for {
+		m, err := bot.irc.Read()
+		if err != nil {
+			log.Fatalf("Unable to parse message from server: %v", err)
+		}
+
+		if !joined && m.Origin == bot.irc.Nick && m.Command == "MODE" {
+			bot.irc.Join("#testbot")
+			joined = true
+		} else {
+			bot.runListeners(*m)
+		}
+	}
 }
