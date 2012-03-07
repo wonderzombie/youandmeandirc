@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 )
 
 // IrcConn represents a connection to an IRC server.
@@ -82,7 +83,7 @@ func (irc IrcConn) Join(channel string) (int, error) {
 // Reads a single message from the server's output.
 func (irc IrcConn) Read() (m *IrcMessage, err error) {
 	s, err := irc.reader.ReadString('\n')
-	log.Println("<=", s)
+	log.Println("<=", strings.TrimRight(s, "\r\n"))
 	if err != nil {
 		log.Println("Error reading from server:", err)
 		return nil, err

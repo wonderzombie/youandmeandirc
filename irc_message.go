@@ -77,7 +77,7 @@ func (m *IrcMessage) init(msg string) (e *IrcMessageError) {
 		if f[0] == '#' && r[0] == ':' {
 			// PRIVMSG directed at a channel.
 			m.Channel = f
-			m.Text = r[1:]
+			m.Text = strings.TrimRight(r[1:], "\r\n")
 		} else {
 			// PRIVMSG directly to a user (i.e. me).
 			m.Params = append(m.Params, f)
