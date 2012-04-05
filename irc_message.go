@@ -11,6 +11,7 @@ type IrcMessage struct {
 	Channel string   // Channel which the message belongs to, if any.
 	Origin  string   // Nick or server which originated the message.
 	Text    string   // Text of the chat.
+	Code    string   // Command code. 
 	Params  []string // Misc params.
 	Target  []string
 }
@@ -61,7 +62,9 @@ func (m *IrcMessage) init(msg string) (e *IrcMessageError) {
 	if i > -1 {
 		m.Origin = prefix[1:i]
 	} else {
+		// This means it is a server name.
 		m.Origin = prefix[1:]
+		m.Code, rest = firstToken(rest)
 	}
 
 	m.Command, rest = firstToken(rest)
@@ -82,6 +85,12 @@ func (m *IrcMessage) init(msg string) (e *IrcMessageError) {
 			// PRIVMSG directly to a user (i.e. me).
 			m.Params = append(m.Params, f)
 			m.Text = r[1:]
+		}
+	} else {
+		// Many commands have some content, denoted by :.
+		i = strings.Index(m.Raw[1:], ":") + 1
+		if i != 0 {
+			m.Text = m.Raw[i:]
 		}
 	}
 

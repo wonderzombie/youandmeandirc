@@ -61,3 +61,13 @@ An extremely rough first attempt at an IRC library implemented in Go.
 
 * is calling /whois on anybody interesting in any way?
 
+### example IRC message formats
+
+#### join
+`:nick!~user@host JOIN :#channel`
+
+#### part
+`:nick!~user@host PART #channel :message content`
+
+#### emote
+`:nick!~user@host PRIVMSG #channel :ACTION message content`

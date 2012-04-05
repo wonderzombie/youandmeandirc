@@ -80,6 +80,11 @@ func (irc IrcConn) Join(channel string) (int, error) {
 	return irc.send(cmd)
 }
 
+func (irc IrcConn) Names(channel string) (int, error) {
+	cmd := fmt.Sprintf("NAMES %v", channel)
+	return irc.send(cmd)
+}
+
 // Reads a single message from the server's output.
 func (irc IrcConn) Read() (m *IrcMessage, err error) {
 	s, err := irc.reader.ReadString('\n')
