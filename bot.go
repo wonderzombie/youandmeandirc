@@ -3,6 +3,7 @@ package youandmeandirc
 import (
 	"log"
 	"math/rand"
+	// "regexp"
 	"strings"
 	"time"
 )
@@ -13,6 +14,7 @@ type IrcBot struct {
 	connectFn ConnectFn
 
 	channels []string
+	names    []string
 }
 
 // ConnectFn is used to generate connections.
@@ -30,6 +32,32 @@ func (bot *IrcBot) pingListener() (pong Listener) {
 			fired, trap = true, true
 		}
 		return
+	}
+	return
+}
+
+func has(haystack []string, needle string) bool {
+	for _, s := range haystack {
+		if s == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func (bot *IrcBot) joinListener() (join Listener) {
+	join = func(msg IrcMessage) (fired, trap bool) {
+		if msg.Command != "JOIN" {
+			return
+		}
+
+		if !has(bot.names, msg.Origin) {
+			log.Println("Adding nick to list of names:", msg.Origin)
+			bot.names = append(bot.names, msg.Origin)
+		}
+
+		// This fired, but don't trap it.
+		return true, false
 	}
 	return
 }
@@ -56,7 +84,7 @@ func (bot *IrcBot) onNameListener() (onName Listener) {
 	max := len(sayings)
 
 	onName = func(msg IrcMessage) (fired, trap bool) {
-		if !strings.Contains(msg.Text, bot.irc.Nick) {
+		if msg.Command != "PRIVMSG" || !strings.Contains(msg.Text, bot.irc.Nick) {
 			return
 		}
 
@@ -79,8 +107,33 @@ func (bot *IrcBot) runListeners(msg IrcMessage) {
 	}
 }
 
+func (bot *IrcBot) askForNames() {
+	for _, channel := range bot.channels {
+		bot.irc.Names(channel)
+	}
+}
+
+func (bot *IrcBot) namesListener() (names Listener) {
+	code := "353"
+
+	names = func(msg IrcMessage) (fired, trap bool) {
+		if code != msg.Code {
+			return
+		}
+
+		i := strings.LastIndex(msg.Raw, ":") + 1
+		bot.names := strings.Fields(msg.Raw[i:])
+		log.Println("Names are now:", bot.names)
+
+		return true, false
+	}
+	return
+}
+
 func (bot *IrcBot) init() (e error) {
 	bot.listeners = []Listener{
+		bot.joinListener(),
+		bot.namesListener(),
 		bot.pingListener(),
 		bot.scoreListener(),
 		bot.seenListener(),
@@ -112,6 +165,8 @@ func (bot *IrcBot) Start(ircConn *IrcConn) {
 		if !joined && m.Origin == bot.irc.Nick && m.Command == "MODE" {
 			bot.irc.Join("#testbot")
 			joined = true
+			// Collect a list of names.
+			bot.askForNames()
 		} else {
 			bot.runListeners(*m)
 		}

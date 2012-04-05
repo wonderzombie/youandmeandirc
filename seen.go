@@ -42,5 +42,5 @@ func (bot *IrcBot) seenListener() (seen Listener) {
     return
   }
 
-  return seen
+  return
 }
