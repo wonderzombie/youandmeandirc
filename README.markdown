@@ -9,12 +9,17 @@ An extremely rough first attempt at an IRC library implemented in Go.
 
 ### TODO
 
-* actually implement event listeners/observers/whatever
+* actually implement event listeners/observers/whatever -- mostly done
+  * however, consider adding some notion of events. the way the bot does names is kind of bogus.
+
+* use channels for reading/writing
+
+* score.go wants to use information from seen.go. this is impossible right now, as all the modules' state is siloed.
 
 * proof of concept: canned responses
-	* copy botty's responses
+	* copy botty's responses -- DONE
 	* "no"
-* delay in typing rather than instant
+* delay in typing rather than instant -- DONE
 	* 0.01 - 0.02 per character
 * emotes
 	* could copy botty's
@@ -22,15 +27,15 @@ An extremely rough first attempt at an IRC library implemented in Go.
 	* quit process most likely
 * be quiet
 	* based on time rather than # of messages?
-* seen
-	* seen enumerated by user
-	* seen anybody/everybody?
-	* seen date/time and/or chat
- 	* track people based on nick changes (e.g. index people by user and/or nick)
-* nick++
-	* ++ --
-	* everyone's score
-	* reasons, incl. adder/demoter
+* seen 
+  * seen enumerated by user -- DONE
+	* seen anybody/everybody? -- DONE
+	* seen date/time and/or chat -- DONE
+  * track people based on nick changes (e.g. index people by user and/or nick)
+* nick++ 
+  * give, dock points -- DONE
+	* everyone's score -- DONE
+	* reasons, incl. adder/demoter -- in progress
 * rumor db
 	* add rumor
 	* promote/demote rumor

@@ -13,6 +13,7 @@ type SeenInfo struct {
 }
 
 func (bot *IrcBot) seenListener() (seen Listener) {
+  re := regexp.MustCompile(fmt.Sprintf("%s, seen (\\w+)\\?", bot.irc.Nick))
   seenList := make(map[string]SeenInfo, 0)
 
   seen = func(msg IrcMessage) (fired, trap bool) {
@@ -21,7 +22,6 @@ func (bot *IrcBot) seenListener() (seen Listener) {
     }
 
     fired = true
-    re := regexp.MustCompile(fmt.Sprintf("%s, seen (\\w+)\\?", bot.irc.Nick))
     match := re.FindStringSubmatch(msg.Text)
     if len(match) == 0 {
       info := SeenInfo{msg, time.Now()}
@@ -34,10 +34,9 @@ func (bot *IrcBot) seenListener() (seen Listener) {
     out := fmt.Sprintf("Sorry, haven't seen %v.", who)
     prev, ok := seenList[who]
     if ok {
-      out = fmt.Sprintf("I last saw %v at %v, saying \"%v\".",
-        who, prev.t, prev.msg.Text)
+      out = fmt.Sprintf("I last saw %v at %v, saying \"%v\".", who, prev.t, prev.msg.Text)
     }
-    bot.irc.Say(msg.Channel, out)
+    bot.Say(msg.Channel, out)
     trap = true
     return
   }
