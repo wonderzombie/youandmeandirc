@@ -25,6 +25,15 @@ type ConnectFn func() (*IrcConn, error)
 // value indicates whether this listener requires no other listeners to fire.
 type Listener func(IrcMessage) (bool, bool)
 
+func has(haystack []string, needle string) bool {
+	for _, s := range haystack {
+		if s == needle {
+			return true
+		}
+	}
+	return false
+}
+
 func (bot *IrcBot) pingListener() (pong Listener) {
 	pong = func(msg IrcMessage) (fired, trap bool) {
 		if msg.Command == "PING" {
@@ -36,22 +45,13 @@ func (bot *IrcBot) pingListener() (pong Listener) {
 	return
 }
 
-func has(haystack []string, needle string) bool {
-	for _, s := range haystack {
-		if s == needle {
-			return true
-		}
-	}
-	return false
-}
-
 func (bot *IrcBot) joinListener() (join Listener) {
 	join = func(msg IrcMessage) (fired, trap bool) {
 		if msg.Command != "JOIN" {
 			return
 		}
 
-		if !has(bot.names, msg.Origin) {
+		if !has(bot.names, msg.Origin) && msg.Origin != bot.irc.Nick {
 			log.Println("Adding nick to list of names:", msg.Origin)
 			bot.names = append(bot.names, msg.Origin)
 		}
@@ -62,7 +62,7 @@ func (bot *IrcBot) joinListener() (join Listener) {
 	return
 }
 
-func (bot *IrcBot) onNameListener() (onName Listener) {
+func (bot *IrcBot) onNameListener() (name Listener) {
 	sayings := []string{
 		"I'd love to help, but I need to finish my post on LJ.",
 		"Hold that thought, BRB",
@@ -83,23 +83,21 @@ func (bot *IrcBot) onNameListener() (onName Listener) {
 	rng := rand.New(src)
 	max := len(sayings)
 
-	onName = func(msg IrcMessage) (fired, trap bool) {
+	name = func(msg IrcMessage) (fired, trap bool) {
 		if msg.Command != "PRIVMSG" || !strings.Contains(msg.Text, bot.irc.Nick) {
 			return
 		}
 
-		fired = true
-		trap = true
 		choice := rng.Int() % max
-
-		bot.irc.Say(msg.Channel, sayings[choice])
-		return
+		bot.Say(msg.Channel, sayings[choice])
+		return true, true
 	}
 	return
 }
 
 func (bot *IrcBot) runListeners(msg IrcMessage) {
 	for _, l := range bot.listeners {
+		// TODO: simplify this. We probably only need one and that'd be trap.
 		fired, trap := l(msg)
 		if trap && fired {
 			return
@@ -122,12 +120,28 @@ func (bot *IrcBot) namesListener() (names Listener) {
 		}
 
 		i := strings.LastIndex(msg.Raw, ":") + 1
-		bot.names := strings.Fields(msg.Raw[i:])
+		names := strings.Fields(msg.Raw[i:])
+		ops := "@+"
+		for _, name := range names {
+			if strings.IndexAny(name, ops) > 0 {
+				name = name[1:]
+			}
+			bot.names = append(bot.names, name)
+		}
+
 		log.Println("Names are now:", bot.names)
 
 		return true, false
 	}
 	return
+}
+
+// Wrapper around IrcConn.Say which simulates typing.
+func (bot *IrcBot) Say(channel, out string) {
+	ms := 10 * len(out)
+	// Pretend we're typing.
+	time.Sleep(time.Duration(ms) * time.Millisecond)
+	bot.irc.Say(channel, out)
 }
 
 func (bot *IrcBot) init() (e error) {
@@ -137,7 +151,7 @@ func (bot *IrcBot) init() (e error) {
 		bot.pingListener(),
 		bot.scoreListener(),
 		bot.seenListener(),
-		bot.onNameListener(), // This should go last.
+		bot.onNameListener(), // This always fires if our name is in it.
 	}
 	return nil
 }
