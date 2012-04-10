@@ -1,4 +1,3 @@
-
 ### youandmeandirc
 
 An extremely rough first attempt at an IRC library implemented in Go.
@@ -40,7 +39,22 @@ An extremely rough first attempt at an IRC library implemented in Go.
 	* "continue" (if feasible)
 	* last URL (extended history?)
 	* recent searches?
+* combat
+	* hit points
+ 	* attacking, incl. crits
+  	* healing
+   	* death/resurrecting
+
 
 * http interface for debugging state?
+
+* text adventure
+	* botty already has some stuff like this, such as the fighting functionality.
+	* preface commands with >
+ 	* this could be a bit broader than combat, just some simple verbs like "use" or "examine"
+  	* user-defined behavior when it comes to setting what happens when someone uses a command?
+   	* or perhaps just a random phrase picked, associated with each command
+    	* "what you expected hasn't happened"; "I don't see that here"; "I don't know how to %v"
+     	* reaction to swears?
 
 
