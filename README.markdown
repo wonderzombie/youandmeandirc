@@ -23,11 +23,12 @@ An extremely rough first attempt at an IRC library implemented in Go.
 * be quiet
 	* based on time rather than # of messages?
 * seen
-  * seen enumerated by user
+	* seen enumerated by user
 	* seen anybody/everybody?
 	* seen date/time and/or chat
+ 	* track people based on nick changes (e.g. index people by user and/or nick)
 * nick++
-  * ++ --
+	* ++ --
 	* everyone's score
 	* reasons, incl. adder/demoter
 * rumor db
@@ -45,6 +46,7 @@ An extremely rough first attempt at an IRC library implemented in Go.
   	* healing
    	* death/resurrecting
 
+### farther afield
 
 * http interface for debugging state?
 
@@ -57,4 +59,5 @@ An extremely rough first attempt at an IRC library implemented in Go.
     	* "what you expected hasn't happened"; "I don't see that here"; "I don't know how to %v"
      	* reaction to swears?
 
+* is calling /whois on anybody interesting in any way?
 
