@@ -13,7 +13,7 @@ type SeenInfo struct {
 }
 
 func (bot *IrcBot) seenListener() (seen Listener) {
-  seenList := make(map[string]SeenInfo, 0)
+  bot.seenList = make(map[string]SeenInfo)
 
   seen = func(msg IrcMessage) (fired, trap bool) {
     if msg.Command != "PRIVMSG" {
@@ -25,14 +25,14 @@ func (bot *IrcBot) seenListener() (seen Listener) {
     match := re.FindStringSubmatch(msg.Text)
     if len(match) == 0 {
       info := SeenInfo{msg, time.Now()}
-      seenList[msg.Origin] = info
+      bot.seenList[msg.Origin] = info
       log.Printf("Storing message from %v: %v\n", msg.Origin, info)
       return
     }
 
     who := match[1]
     out := fmt.Sprintf("Sorry, haven't seen %v.", who)
-    prev, ok := seenList[who]
+    prev, ok := bot.seenList[who]
     if ok {
       out = fmt.Sprintf("I last saw %v at %v, saying \"%v\".", who, prev.t, prev.msg.Text)
     }

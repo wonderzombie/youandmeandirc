@@ -72,7 +72,13 @@ func (bot *IrcBot) handleScoreChange(msg IrcMessage) (fired, trap bool) {
   // TODO: make Reason interesting. If the originator only said foo++ then this is silly.
   // Instead, we should use the SeenList in seen.go to gather what the person last said. If
   // that person has no entry in the list, then omit a reason and just grant them the point.
-  newPoint := Point{Granter: granter, When: time.Now(), Reason: msg.Text}
+  reason := msg.Text
+  when := time.Now()
+  if seenInfo, ok := bot.seenList[granter]; ok {
+    reason = seenInfo.msg.Text
+    when = seenInfo.t
+  }
+  newPoint := Point{Granter: granter, When: when, Reason: reason}
   newPoint.Increase = delta == 1
   log.Printf("Looks like a score message for %v from %v.\n", nick, granter)
 
@@ -123,13 +129,13 @@ func (bot *IrcBot) handleMyScoreRequest(msg IrcMessage) (fired, trap bool) {
 
   out := []string{fmt.Sprintf("%v, you don't have a score yet.", msg.Origin)}
   if score, ok := scoreMap[msg.Origin]; ok {
-    out = fmt.Sprintf("%v, your score is %v.", msg.Origin, score.Total)
+    out = []string{fmt.Sprintf("%v, your score is %v.", msg.Origin, score.Total)}
     for _, point := range score.Points {
       verb := "docked"
       if point.Increase {
         verb = "gave"
       }
-      s := fmt.Sprintf("%v %v you a point at %v.", point.Granter, verb, point.When)
+      s := fmt.Sprintf("%v %v you a point at %v for saying \"%v\"", point.Granter, verb, point.When, point.Reason)
       out = append(out, s)
     }
   }

@@ -18,6 +18,8 @@ type IrcBot struct {
 	names    []string
 
 	uptime   time.Time
+
+	seenList map[string]SeenInfo
 }
 
 // ConnectFn is used to generate connections.
