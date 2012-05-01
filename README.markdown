@@ -27,12 +27,12 @@ An extremely rough first attempt at an IRC library implemented in Go.
 	* quit process most likely
 * be quiet
 	* based on time rather than # of messages?
-* seen 
+* seen
   * seen enumerated by user -- DONE
 	* seen anybody/everybody? -- DONE
 	* seen date/time and/or chat -- DONE
   * track people based on nick changes (e.g. index people by user and/or nick)
-* nick++ 
+* nick++
   * give, dock points -- DONE
 	* everyone's score -- DONE
 	* reasons, incl. adder/demoter -- in progress
@@ -50,6 +50,7 @@ An extremely rough first attempt at an IRC library implemented in Go.
  	* attacking, incl. crits
   	* healing
    	* death/resurrecting
+* uptime -- DONE
 
 ### farther afield
 

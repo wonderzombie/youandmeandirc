@@ -13,13 +13,13 @@ type SeenInfo struct {
 }
 
 func (bot *IrcBot) seenListener() (seen Listener) {
-  re := regexp.MustCompile(fmt.Sprintf("%s, seen (\\w+)\\?", bot.irc.Nick))
   seenList := make(map[string]SeenInfo, 0)
 
   seen = func(msg IrcMessage) (fired, trap bool) {
     if msg.Command != "PRIVMSG" {
       return
     }
+    re := regexp.MustCompile(fmt.Sprintf("%v, seen (\\w+)\\?", bot.irc.Nick))
 
     fired = true
     match := re.FindStringSubmatch(msg.Text)

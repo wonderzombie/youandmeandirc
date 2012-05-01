@@ -1,6 +1,7 @@
 package youandmeandirc
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	// "regexp"
@@ -15,6 +16,8 @@ type IrcBot struct {
 
 	channels []string
 	names    []string
+
+	uptime   time.Time
 }
 
 // ConnectFn is used to generate connections.
@@ -111,6 +114,24 @@ func (bot *IrcBot) askForNames() {
 	}
 }
 
+func (bot *IrcBot) uptimeListener() (uptime Listener) {
+	uptime = func(msg IrcMessage) (fired, trap bool) {
+		if msg.Command != "PRIVMSG" {
+			return
+		}
+
+		lower := strings.ToLower(msg.Text)
+		expected := fmt.Sprintf("%v, uptime?", bot.irc.Nick)
+		if lower != expected {
+			return
+		}
+
+		bot.irc.Say(msg.Channel, fmt.Sprintf("Uptime is %v", time.Since(bot.uptime)))
+		return true, true
+	}
+	return
+}
+
 func (bot *IrcBot) namesListener() (names Listener) {
 	code := "353"
 
@@ -151,6 +172,7 @@ func (bot *IrcBot) init() (e error) {
 		bot.pingListener(),
 		bot.scoreListener(),
 		bot.seenListener(),
+		bot.uptimeListener(),
 		bot.onNameListener(), // This always fires if our name is in it.
 	}
 	return nil
@@ -171,6 +193,7 @@ func (bot *IrcBot) Start(ircConn *IrcConn) {
 	joined := false
 
 	for {
+		bot.uptime = time.Now()
 		m, err := bot.irc.Read()
 		if err != nil {
 			log.Fatalf("Unable to parse message from server: %v", err)

@@ -123,7 +123,7 @@ func (bot *IrcBot) handleMyScoreRequest(msg IrcMessage) (fired, trap bool) {
 
   out := []string{fmt.Sprintf("%v, you don't have a score yet.", msg.Origin)}
   if score, ok := scoreMap[msg.Origin]; ok {
-    out = append(out, fmt.Sprintf("%v, your score is %v.", msg.Origin, score.Total))
+    out = fmt.Sprintf("%v, your score is %v.", msg.Origin, score.Total)
     for _, point := range score.Points {
       verb := "docked"
       if point.Increase {
