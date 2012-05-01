@@ -11,7 +11,7 @@ type IrcMessage struct {
 	Channel string   // Channel which the message belongs to, if any.
 	Origin  string   // Nick or server which originated the message.
 	Text    string   // Text of the chat.
-	Code    string   // Command code. 
+	Code    string   // Command code.
 	Params  []string // Misc params.
 	Target  []string
 }
@@ -104,4 +104,17 @@ func firstToken(s string) (first, rest string) {
 		rest = x[1]
 	}
 	return
+}
+
+func (m *IrcMessage) HasText(s string) bool {
+	return strings.Index(m.Text, s) >= 0
+}
+
+func (m *IrcMessage) TextHasAny(ss []string) bool {
+  for _, s := range ss {
+    if m.HasText(s) {
+      return true
+    }
+  }
+  return false
 }

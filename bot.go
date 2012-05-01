@@ -20,6 +20,8 @@ type IrcBot struct {
 	uptime   time.Time
 
 	seenList map[string]SeenInfo
+
+	asleep   bool
 }
 
 // ConnectFn is used to generate connections.
@@ -169,9 +171,10 @@ func (bot *IrcBot) Say(channel, out string) {
 
 func (bot *IrcBot) init() (e error) {
 	bot.listeners = []Listener{
+		bot.pingListener(), // This must come first.
+		bot.sleepListener(), // This must come second.
 		bot.joinListener(),
 		bot.namesListener(),
-		bot.pingListener(),
 		bot.scoreListener(),
 		bot.seenListener(),
 		bot.uptimeListener(),
@@ -195,14 +198,16 @@ func (bot *IrcBot) Start(ircConn *IrcConn) {
 	joined := false
 
 	for {
-		bot.uptime = time.Now()
 		m, err := bot.irc.Read()
 		if err != nil {
 			log.Fatalf("Unable to parse message from server: %v", err)
 		}
 
+		// TODO: uh, look at the actual codes so we know when we've joined. This is a bit hacky.
 		if !joined && m.Origin == bot.irc.Nick && m.Command == "MODE" {
 			bot.irc.Join("#testbot")
+			// Sorta dumb, but basically don't count uptime until we've joined a channel.
+			bot.uptime = time.Now()
 			joined = true
 			// Collect a list of names.
 			bot.askForNames()

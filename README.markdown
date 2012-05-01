@@ -25,8 +25,8 @@ An extremely rough first attempt at an IRC library implemented in Go.
 	* could copy botty's
 * go away
 	* quit process most likely
-* be quiet
-	* based on time rather than # of messages?
+* be quiet -- DONE
+	* based on time rather than # of messages? -- not done. async messaging not supported (yet?), unfortunately. :(
 * seen
   * seen enumerated by user -- DONE
 	* seen anybody/everybody? -- DONE
@@ -35,7 +35,7 @@ An extremely rough first attempt at an IRC library implemented in Go.
 * nick++
   * give, dock points -- DONE
 	* everyone's score -- DONE
-	* reasons, incl. adder/demoter -- in progress
+	* reasons, incl. adder/demoter -- DONE
 * rumor db
 	* add rumor
 	* promote/demote rumor
