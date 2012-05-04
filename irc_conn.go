@@ -25,7 +25,7 @@ type IrcConn struct {
 
 // send transmits a command to the currently connected server.
 func (irc IrcConn) send(s string) (int, error) {
-	fmt.Println("=>", s)
+	log.Println("=>", s)
 	return fmt.Fprintln(irc.conn, s)
 }
 

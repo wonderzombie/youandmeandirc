@@ -16,9 +16,15 @@ func (bot *IrcBot) seenListener() (seen Listener) {
   bot.seenList = make(map[string]SeenInfo)
 
   seen = func(msg IrcMessage) (fired, trap bool) {
-    if msg.Command != "PRIVMSG" {
+    accepted := []ircCmd{
+      CmdPrivmsg,
+      CmdJoin,
+      CmdPart,
+    }
+    if !msg.Matches(accepted) {
       return
     }
+
     re := regexp.MustCompile(fmt.Sprintf("%v, seen (\\w+)\\?", bot.irc.Nick))
 
     fired = true

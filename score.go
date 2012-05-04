@@ -27,7 +27,7 @@ var scoreMap = make(map[string]Score, 0)
 
 func (bot *IrcBot) scoreListener() (scorer Listener) {
   scorer = func(msg IrcMessage) (fired, trap bool) {
-    if msg.Command != "PRIVMSG" {
+    if msg.Command != CmdPrivmsg {
       return
     }
 

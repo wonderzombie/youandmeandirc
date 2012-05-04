@@ -4,16 +4,49 @@ import (
 	"strings"
 )
 
+type ircCmd int
+
+const (
+	CmdPing ircCmd = iota
+	CmdPrivmsg
+	CmdMode
+	CmdPart
+	CmdJoin
+	CmdNotice
+	CmdNum
+)
+
+// Lookup table for commands against IDs.
+var cmdMap = map[string]ircCmd{
+	"PING":    CmdPing,
+	"PRIVMSG": CmdPrivmsg,
+	"MODE":    CmdMode,
+	"PART":    CmdPart,
+	"JOIN":    CmdJoin,
+	"NOTICE":  CmdNotice,
+	"":        CmdNum,
+}
+
+func (c ircCmd) String() string {
+	for k, v := range cmdMap {
+		if c == v {
+			return k
+		}
+	}
+	return ""
+}
+
 // IrcMessage is a structured representation of an IRC message.
 type IrcMessage struct {
 	Raw     string
-	Command string
+	Command ircCmd
 	Channel string   // Channel which the message belongs to, if any.
 	Origin  string   // Nick or server which originated the message.
 	Text    string   // Text of the chat.
 	Code    string   // Command code.
-	Params  []string // Misc params.
-	Target  []string
+	Args    []string // Misc params.
+	User    string
+	Nick    string
 }
 
 // IrcMessageError is returned when an IRC message cannot be parsed.
@@ -42,68 +75,85 @@ func (m *IrcMessage) newErr(reason string) (e *IrcMessageError) {
 	}
 }
 
+func splitMsg(msg string) (command, content string) {
+	msg = strings.Trim(msg, ":")
+	if strings.Index(msg, ":") == -1 {
+		command = msg
+		return
+	}
+
+	pieces := strings.SplitN(msg, ":", 2)
+	command, content = pieces[0], pieces[1]
+	return
+}
+
+func fromServer(prefix string) bool {
+	// If there's no ! in the prefix, that means it's a server name.
+	return strings.Index(prefix, "!") == -1
+}
+
+func whoIs(prefix string) (nick, user string) {
+	prefix = strings.Trim(prefix, ":")
+	if fromServer(prefix) {
+		return "", prefix
+	}
+
+	pp := strings.Split(prefix, "@")
+	ss := strings.Split(pp[0], "!")
+	nick = ss[0]
+	user = strings.Trim(ss[1], "~")
+	return
+}
+
 func (m *IrcMessage) init(msg string) (e *IrcMessageError) {
-	m.Raw = msg
+	command, content := splitMsg(msg)
+	commandTokens := strings.Fields(command)
 
-	prefix, rest := firstToken(msg)
-
-	if prefix == "PING" {
-		if rest == "" {
-			return m.newErr("Received PING without daemon")
-		}
-		m.Command = prefix
-		// Trim the : before the daemon name.
-		m.Params = append(m.Params, rest[1:])
+	fst := commandTokens[0]
+	if cmd, ok := cmdMap[fst]; ok && cmd == CmdPing {
+		m.Origin = content
+		m.Command = cmd
 		return
 	}
 
-	// Take out the "foo" in "foo!~username@host"
-	i := strings.Index(prefix, "!")
-	if i > -1 {
-		m.Origin = prefix[1:i]
-	} else {
-		// This means it is a server name.
-		m.Origin = prefix[1:]
-		m.Code, rest = firstToken(rest)
-	}
+	origin, cmd := commandTokens[0], commandTokens[1]
+	m.Nick, m.User = whoIs(origin)
+	m.Origin = m.User
 
-	m.Command, rest = firstToken(rest)
-
-	// Bail if there's no more to parse.
-	if rest == "" {
+	cmdId, ok := cmdMap[cmd]
+	if !ok {
+		m.Command = CmdNum
+		m.Code = cmd
+		if len(commandTokens) > 2 {
+			m.Args = commandTokens[2:]
+		}
+		if content != "" {
+			m.Text = content
+		}
 		return
 	}
 
-	f, r := firstToken(rest)
-	// For now, we just care about PRIVMSG.
-	if m.Command == "PRIVMSG" {
-		if f[0] == '#' && r[0] == ':' {
-			// PRIVMSG directed at a channel.
-			m.Channel = f
-			m.Text = strings.TrimRight(r[1:], "\r\n")
-		} else {
-			// PRIVMSG directly to a user (i.e. me).
-			m.Params = append(m.Params, f)
-			m.Text = r[1:]
-		}
-	} else {
-		// Many commands have some content, denoted by :.
-		i = strings.Index(m.Raw[1:], ":") + 1
-		if i != 0 {
-			m.Text = m.Raw[i:]
-		}
+	m.Command = cmdId
+	switch cmdId {
+	case CmdJoin:
+		m.Channel = content
+	case CmdPrivmsg, CmdMode, CmdNotice:
+		m.Channel = commandTokens[2]
+		m.Text = content
+	case CmdPart:
+		m.Channel = commandTokens[2]
 	}
 
 	return
 }
 
-func firstToken(s string) (first, rest string) {
-	x := strings.SplitN(s, " ", 2)
-	first = x[0]
-	if len(x) == 2 {
-		rest = x[1]
+func (m *IrcMessage) Matches(cmds []ircCmd) bool {
+	for _, c := range cmds {
+		if c == m.Command {
+			return true
+		}
 	}
-	return
+	return false
 }
 
 func (m *IrcMessage) HasText(s string) bool {
@@ -111,10 +161,10 @@ func (m *IrcMessage) HasText(s string) bool {
 }
 
 func (m *IrcMessage) TextHasAny(ss []string) bool {
-  for _, s := range ss {
-    if m.HasText(s) {
-      return true
-    }
-  }
-  return false
+	for _, s := range ss {
+		if m.HasText(s) {
+			return true
+		}
+	}
+	return false
 }

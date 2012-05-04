@@ -17,11 +17,11 @@ type IrcBot struct {
 	channels []string
 	names    []string
 
-	uptime   time.Time
+	uptime time.Time
 
 	seenList map[string]SeenInfo
 
-	asleep   bool
+	asleep bool
 }
 
 // ConnectFn is used to generate connections.
@@ -43,7 +43,7 @@ func has(haystack []string, needle string) bool {
 
 func (bot *IrcBot) pingListener() (pong Listener) {
 	pong = func(msg IrcMessage) (fired, trap bool) {
-		if msg.Command == "PING" {
+		if msg.Command == CmdPing {
 			bot.irc.Pong(msg.Origin)
 			fired, trap = true, true
 		}
@@ -54,7 +54,7 @@ func (bot *IrcBot) pingListener() (pong Listener) {
 
 func (bot *IrcBot) joinListener() (join Listener) {
 	join = func(msg IrcMessage) (fired, trap bool) {
-		if msg.Command != "JOIN" {
+		if msg.Command != CmdJoin {
 			return
 		}
 
@@ -91,7 +91,7 @@ func (bot *IrcBot) onNameListener() (name Listener) {
 	max := len(sayings)
 
 	name = func(msg IrcMessage) (fired, trap bool) {
-		if msg.Command != "PRIVMSG" || !strings.Contains(msg.Text, bot.irc.Nick) {
+		if msg.Command != CmdPrivmsg || !strings.Contains(msg.Text, bot.irc.Nick) {
 			return
 		}
 
@@ -120,7 +120,7 @@ func (bot *IrcBot) askForNames() {
 
 func (bot *IrcBot) uptimeListener() (uptime Listener) {
 	uptime = func(msg IrcMessage) (fired, trap bool) {
-		if msg.Command != "PRIVMSG" {
+		if msg.Command != CmdPrivmsg {
 			return
 		}
 
@@ -171,7 +171,7 @@ func (bot *IrcBot) Say(channel, out string) {
 
 func (bot *IrcBot) init() (e error) {
 	bot.listeners = []Listener{
-		bot.pingListener(), // This must come first.
+		bot.pingListener(),  // This must come first.
 		bot.sleepListener(), // This must come second.
 		bot.joinListener(),
 		bot.namesListener(),
@@ -199,12 +199,13 @@ func (bot *IrcBot) Start(ircConn *IrcConn) {
 
 	for {
 		m, err := bot.irc.Read()
+		// fmt.Printf("%+v\n", *m)
 		if err != nil {
 			log.Fatalf("Unable to parse message from server: %v", err)
 		}
 
 		// TODO: uh, look at the actual codes so we know when we've joined. This is a bit hacky.
-		if !joined && m.Origin == bot.irc.Nick && m.Command == "MODE" {
+		if !joined && m.Nick == bot.irc.Nick && m.Command == CmdMode {
 			bot.irc.Join("#testbot")
 			// Sorta dumb, but basically don't count uptime until we've joined a channel.
 			bot.uptime = time.Now()

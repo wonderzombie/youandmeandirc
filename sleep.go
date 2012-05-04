@@ -11,6 +11,10 @@ func (bot *IrcBot) sleepListener() (sleep Listener) {
   var sleptAt time.Time
 
   sleep = func(msg IrcMessage) (fired, trap bool) {
+    if msg.Command != CmdPrivmsg {
+      return
+    }
+
     if bot.asleep {
       if msg.HasText("wake up") && msg.HasText(bot.irc.Nick) {
         // wake up
@@ -23,14 +27,14 @@ func (bot *IrcBot) sleepListener() (sleep Listener) {
           bot.irc.Say(msg.Channel, "Zzz— what? How long was I out?")
           bot.asleep = false
         } else {
-          log.Printf("Zzzz. Still sleeping. %v minutes to go.\n", sleepMinutes.Minutes() - since.Minutes())
+          log.Printf("Zzzz. Still sleeping. %v minutes to go.\n", sleepMinutes.Minutes()-since.Minutes())
         }
       }
 
       return true, true
     }
 
-    if msg.Command != "PRIVMSG" || !msg.HasText(bot.irc.Nick) {
+    if msg.Command != CmdPrivmsg || !msg.HasText(bot.irc.Nick) {
       return
     }
 
