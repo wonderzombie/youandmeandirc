@@ -32,6 +32,10 @@ type ConnectFn func() (*IrcConn, error)
 // value indicates whether this listener requires no other listeners to fire.
 type Listener func(IrcMessage) (bool, bool)
 
+// TODO: replace Listener with BotListener. This will allow just to just enumerate Listeners
+// instead of the rigmarole right now, where methods on IrcBot return Listeners.
+type BotListener func(*IrcBot, IrcMessage) (bool, bool)
+
 func has(haystack []string, needle string) bool {
 	for _, s := range haystack {
 		if s == needle {
@@ -58,9 +62,9 @@ func (bot *IrcBot) joinListener() (join Listener) {
 			return
 		}
 
-		if !has(bot.names, msg.Origin) && msg.Origin != bot.irc.Nick {
-			log.Println("Adding nick to list of names:", msg.Origin)
-			bot.names = append(bot.names, msg.Origin)
+		if !has(bot.names, msg.Nick) && msg.Nick != bot.irc.Nick {
+			log.Println("Adding nick to list of names:", msg.Nick)
+			bot.names = append(bot.names, msg.Nick)
 		}
 
 		// This fired, but don't trap it.
@@ -137,6 +141,7 @@ func (bot *IrcBot) uptimeListener() (uptime Listener) {
 }
 
 func (bot *IrcBot) namesListener() (names Listener) {
+	// This can actually be multiple lines. The termination line that you want is 366.
 	code := "353"
 
 	names = func(msg IrcMessage) (fired, trap bool) {
@@ -144,13 +149,10 @@ func (bot *IrcBot) namesListener() (names Listener) {
 			return
 		}
 
-		i := strings.LastIndex(msg.Raw, ":") + 1
-		names := strings.Fields(msg.Raw[i:])
+		names := strings.Fields(msg.Text)
 		ops := "@+"
 		for _, name := range names {
-			if strings.IndexAny(name, ops) > 0 {
-				name = name[1:]
-			}
+			name = strings.Trim(name, ops)
 			bot.names = append(bot.names, name)
 		}
 
@@ -175,10 +177,11 @@ func (bot *IrcBot) init() (e error) {
 		bot.sleepListener(), // This must come second.
 		bot.joinListener(),
 		bot.namesListener(),
+		bot.regexListener(),
 		bot.scoreListener(),
 		bot.seenListener(),
 		bot.uptimeListener(),
-		bot.onNameListener(), // This always fires if our name is in it.
+		bot.onNameListener(), // This should go last.
 	}
 	return nil
 }

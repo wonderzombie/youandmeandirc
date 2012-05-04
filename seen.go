@@ -31,8 +31,8 @@ func (bot *IrcBot) seenListener() (seen Listener) {
     match := re.FindStringSubmatch(msg.Text)
     if len(match) == 0 {
       info := SeenInfo{msg, time.Now()}
-      bot.seenList[msg.Origin] = info
-      log.Printf("Storing message from %v: %v\n", msg.Origin, info)
+      bot.seenList[msg.Nick] = info
+      log.Printf("Storing message from %v: %v\n", msg.Nick, info)
       return
     }
 

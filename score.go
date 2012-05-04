@@ -68,7 +68,7 @@ func (bot *IrcBot) handleScoreChange(msg IrcMessage) (fired, trap bool) {
   if scoreChangeMatch[2] == "++" {
     delta = 1
   }
-  granter := msg.Origin
+  granter := msg.Nick
   // TODO: make Reason interesting. If the originator only said foo++ then this is silly.
   // Instead, we should use the SeenList in seen.go to gather what the person last said. If
   // that person has no entry in the list, then omit a reason and just grant them the point.
@@ -127,9 +127,9 @@ func (bot *IrcBot) handleMyScoreRequest(msg IrcMessage) (fired, trap bool) {
     return
   }
 
-  out := []string{fmt.Sprintf("%v, you don't have a score yet.", msg.Origin)}
-  if score, ok := scoreMap[msg.Origin]; ok {
-    out = []string{fmt.Sprintf("%v, your score is %v.", msg.Origin, score.Total)}
+  out := []string{fmt.Sprintf("%v, you don't have a score yet.", msg.Nick)}
+  if score, ok := scoreMap[msg.Nick]; ok {
+    out = []string{fmt.Sprintf("%v, your score is %v.", msg.Nick, score.Total)}
     for _, point := range score.Points {
       verb := "docked"
       if point.Increase {
