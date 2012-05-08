@@ -21,7 +21,9 @@ type IrcBot struct {
 
 	seenList map[string]SeenInfo
 
-	asleep bool
+	asleep   bool
+
+	healthList map[string]int
 }
 
 // ConnectFn is used to generate connections.
@@ -180,6 +182,7 @@ func (bot *IrcBot) init() (e error) {
 		bot.regexListener(),
 		bot.scoreListener(),
 		bot.seenListener(),
+		bot.combatListener(),
 		bot.uptimeListener(),
 		bot.onNameListener(), // This should go last.
 	}
