@@ -17,6 +17,8 @@ type IrcBot struct {
 	channels []string
 	names    []string
 
+	namesSet map[string]bool
+
 	uptime time.Time
 
 	seenList map[string]SeenInfo
@@ -24,6 +26,8 @@ type IrcBot struct {
 	asleep   bool
 
 	healthList map[string]int
+
+	rng *rand.Rand
 }
 
 // ConnectFn is used to generate connections.
@@ -64,9 +68,11 @@ func (bot *IrcBot) joinListener() (join Listener) {
 			return
 		}
 
-		if !has(bot.names, msg.Nick) && msg.Nick != bot.irc.Nick {
+		_, ok := bot.namesSet[msg.Nick]
+		if !ok && msg.Nick != bot.irc.Nick {
 			log.Println("Adding nick to list of names:", msg.Nick)
-			bot.names = append(bot.names, msg.Nick)
+			// bot.names = append(bot.names, msg.Nick)
+			bot.namesSet[msg.Nick] = true
 		}
 
 		// This fired, but don't trap it.
@@ -92,8 +98,8 @@ func (bot *IrcBot) onNameListener() (name Listener) {
 		"I kissed a boy today.",
 	}
 
-	src := rand.NewSource(time.Now().UnixNano())
-	rng := rand.New(src)
+	// src := rand.NewSource(time.Now().UnixNano())
+	// rng := rand.New(src)
 	max := len(sayings)
 
 	name = func(msg IrcMessage) (fired, trap bool) {
@@ -101,7 +107,7 @@ func (bot *IrcBot) onNameListener() (name Listener) {
 			return
 		}
 
-		choice := rng.Int() % max
+		choice := bot.rng.Int() % max
 		bot.Say(msg.Channel, sayings[choice])
 		return true, true
 	}
@@ -155,10 +161,11 @@ func (bot *IrcBot) namesListener() (names Listener) {
 		ops := "@+"
 		for _, name := range names {
 			name = strings.Trim(name, ops)
-			bot.names = append(bot.names, name)
+			bot.namesSet[name] = true
+			// bot.names = append(bot.names, name)
 		}
 
-		log.Println("Names are now:", bot.names)
+		log.Println("Names are now:", bot.namesSet)
 
 		return true, false
 	}
@@ -202,6 +209,10 @@ func NewBot() (*IrcBot, error) {
 func (bot *IrcBot) Start(ircConn *IrcConn) {
 	bot.irc = ircConn
 	joined := false
+
+	// Initialize RNG.
+	src := rand.NewSource(time.Now().UnixNano())
+	bot.rng = rand.New(src)
 
 	for {
 		m, err := bot.irc.Read()
