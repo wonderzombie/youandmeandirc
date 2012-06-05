@@ -9,6 +9,18 @@ import (
 	"time"
 )
 
+// ConnectFn is used to generate connections.
+type ConnectFn func() (*IrcConn, error)
+
+// Listeners are called when a message arrives. The first return value
+// indicates whether the message caused the listener to fire. The second return
+// value indicates whether this listener requires no other listeners to fire.
+type Listener func(IrcMessage) (bool, bool)
+
+// TODO: replace Listener with BotListener. This will allow just to just enumerate Listeners
+// instead of the rigmarole right now, where methods on IrcBot return Listeners.
+type BotListener func(*IrcBot, IrcMessage) (bool, bool)
+
 type IrcBot struct {
 	irc       *IrcConn
 	listeners []Listener
@@ -30,25 +42,22 @@ type IrcBot struct {
 	rng *rand.Rand
 }
 
-// ConnectFn is used to generate connections.
-type ConnectFn func() (*IrcConn, error)
-
-// Listeners are called when a message arrives. The first return value
-// indicates whether the message caused the listener to fire. The second return
-// value indicates whether this listener requires no other listeners to fire.
-type Listener func(IrcMessage) (bool, bool)
-
-// TODO: replace Listener with BotListener. This will allow just to just enumerate Listeners
-// instead of the rigmarole right now, where methods on IrcBot return Listeners.
-type BotListener func(*IrcBot, IrcMessage) (bool, bool)
-
-func has(haystack []string, needle string) bool {
-	for _, s := range haystack {
-		if s == needle {
-			return true
-		}
+func (bot *IrcBot) init() (e error) {
+	bot.listeners = []Listener{
+		bot.pingListener(),  // This must come first.
+		bot.sleepListener(), // This must come second.
+		bot.joinListener(),
+		bot.namesListener(),
+		bot.regexListener(),
+		bot.scoreListener(),
+		bot.seenListener(),
+		bot.combatListener(),
+		bot.uptimeListener(),
+		bot.onNameListener(), // This should go last.
 	}
-	return false
+	bot.namesSet = make(map[string]bool)
+	bot.healthList = make(map[string]int)
+	return nil
 }
 
 func (bot *IrcBot) pingListener() (pong Listener) {
@@ -117,8 +126,7 @@ func (bot *IrcBot) onNameListener() (name Listener) {
 func (bot *IrcBot) runListeners(msg IrcMessage) {
 	for _, l := range bot.listeners {
 		// TODO: simplify this. We probably only need one and that'd be trap.
-		fired, trap := l(msg)
-		if trap && fired {
+		if _, trap := l(msg); trap {
 			return
 		}
 	}
@@ -162,8 +170,8 @@ func (bot *IrcBot) namesListener() (names Listener) {
 		for _, name := range names {
 			name = strings.Trim(name, ops)
 			bot.namesSet[name] = true
-			// bot.names = append(bot.names, name)
 		}
+		bot.namesSet[bot.irc.Nick] = true
 
 		log.Println("Names are now:", bot.namesSet)
 
@@ -178,22 +186,6 @@ func (bot *IrcBot) Say(channel, out string) {
 	// Pretend we're typing.
 	time.Sleep(time.Duration(ms) * time.Millisecond)
 	bot.irc.Say(channel, out)
-}
-
-func (bot *IrcBot) init() (e error) {
-	bot.listeners = []Listener{
-		bot.pingListener(),  // This must come first.
-		bot.sleepListener(), // This must come second.
-		bot.joinListener(),
-		bot.namesListener(),
-		bot.regexListener(),
-		bot.scoreListener(),
-		bot.seenListener(),
-		bot.combatListener(),
-		bot.uptimeListener(),
-		bot.onNameListener(), // This should go last.
-	}
-	return nil
 }
 
 // Creates a new bot.

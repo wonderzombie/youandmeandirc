@@ -106,6 +106,10 @@ func whoIs(prefix string) (nick, user string) {
 }
 
 func (m *IrcMessage) init(msg string) (e *IrcMessageError) {
+	// Trim trailing nonprinting character.
+	// This may need more delicate treatment if it turns out multiline IRC
+	// messages are a problem.
+	msg = strings.Trim(strings.TrimSpace(msg), "\x01")
 	command, content := splitMsg(msg)
 	commandTokens := strings.Fields(command)
 

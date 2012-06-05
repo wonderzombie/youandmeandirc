@@ -2,33 +2,30 @@ package youandmeandirc
 
 import (
   "fmt"
+  "log"
   "strings"
 )
 
 func (bot *IrcBot) combatListener() (combat Listener) {
+  attacks := []string{
+    "beat",
+    "gouges",
+    "hits",
+    "kicks",
+    "pummels",
+    "punches",
+    "slap",
+    "smack",
+    "stabs",
+  }
+
   combat = func(msg IrcMessage) (fired, trap bool) {
     if msg.Command != CmdPrivmsg {
       return
     }
 
-    if strings.HasPrefix(msg.Text, "\x01ACTION") {
-      bot.irc.Say(msg.Channel, "wtf")
-      return true, true
-    }
-
-    attacks := []string{
-      "beat",
-      "gouges",
-      "hits",
-      "kicks",
-      "pummels",
-      "punches",
-      "slap",
-      "smack",
-      "stabs",
-    }
-
-    if !msg.TextHasAny(attacks) {
+    if !strings.HasPrefix(msg.Text, "\x01ACTION") ||
+       !msg.TextHasAny(attacks) {
       return
     }
 
@@ -37,20 +34,24 @@ func (bot *IrcBot) combatListener() (combat Listener) {
     if len(fields) < 3 {
       return
     }
+    log.Printf("Attack received: %q\n", fields)
 
     // You cannot attack if you're dead.
     attackerHp, ok := bot.healthList[msg.Nick]
     if ok && attackerHp == 0 {
       say := fmt.Sprintf("You can't attack when you're dead, %v!", msg.Nick)
       bot.irc.Say(msg.Channel, say)
-      return
+      return false, true
     }
 
     // Is the target present?
-    target := fields[len(fields) - 1]
-    _, ok = bot.namesSet[target]
+    log.Printf("Targets: %q\n", bot.namesSet)
+    target := strings.TrimSpace(last(fields))
+    ok, _ = bot.namesSet[target]
     if !ok {
+      log.Printf("Target is not present: %q\n", target)
       bot.irc.Say(msg.Channel, fmt.Sprintf("%v flails around.", msg.Nick))
+      return false, true
     }
 
     fired, trap = true, true
@@ -58,11 +59,14 @@ func (bot *IrcBot) combatListener() (combat Listener) {
     health, ok := bot.healthList[target]
     if !ok {
       health = 10
+    } else if health == 0 {
+      bot.irc.Say(msg.Channel, fmt.Sprintf("%v is already dead!", target))
+      return true, true
     }
 
     var out string
-    toHit := bot.rng.Int() % 6
-    damage := bot.rng.Int()
+    toHit := 1 + bot.rng.Int() % 6
+    damage := 1 + bot.rng.Int() % 10
 
     switch toHit {
     case 1:
@@ -74,6 +78,7 @@ func (bot *IrcBot) combatListener() (combat Listener) {
       out = fmt.Sprintf("%v hits %v for %v damage!", msg.Nick, target, damage)
     }
 
+
     health -= damage
     bot.irc.Say(msg.Channel, out)
 
@@ -84,7 +89,6 @@ func (bot *IrcBot) combatListener() (combat Listener) {
     }
 
     bot.healthList[target] = health
-
     return
   }
   return
