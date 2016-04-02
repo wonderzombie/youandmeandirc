@@ -37,7 +37,7 @@ func (bot *IrcBot) regexListener() (l Listener) {
 
     search, repl, ok := searchReplForRegex(head)
     if !ok {
-      log.Printf("Doesn't look like a regex:%q\n", head)
+      log.Printf("Doesn't look like a regex: %q\n", head)
       return
     }
 

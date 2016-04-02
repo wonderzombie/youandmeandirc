@@ -24,7 +24,7 @@ var cmdMap = map[string]ircCmd{
 	"PART":    CmdPart,
 	"JOIN":    CmdJoin,
 	"NOTICE":  CmdNotice,
-	"":        CmdNum,
+	"###":     CmdNum,
 }
 
 func (c ircCmd) String() string {

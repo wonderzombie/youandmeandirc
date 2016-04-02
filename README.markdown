@@ -12,6 +12,13 @@ An extremely rough first attempt at an IRC library implemented in Go.
 * actually implement event listeners/observers/whatever -- mostly done
   * however, consider adding some notion of events. the way the bot does names is kind of bogus.
 
+* some notion of listeners for a specific set of messages would also be helpful. there's a lot of boilerplate for each type of listener, where we cancel out for PRIVMSG. A listener could register for certain types of messages and save themselves the trouble of checking that crap.
+  * it may even be worthwhile to provide a "shouldFire" function for each listener, so that we have one (optional) set of code which checks whether or not to call it and then the "real" code which can operate under the assumption that our message is valid.
+  * alternatively just use this as a design pattern or part of the interface for a module.
+
+* this implies an order of initialization. once we have a healthy connection, *then* initialize stuff. this is because some listeners -may- want to know the bot's nick.
+  * different stages of initialization would be overkill. just init all the listeners/modules after we know we've connected to a server, or possibly even as late as channel.
+
 * use channels for reading/writing
 
 * score.go wants to use information from seen.go. this is impossible right now, as all the modules' state is siloed.
