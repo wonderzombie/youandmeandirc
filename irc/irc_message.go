@@ -1,34 +1,34 @@
-package youandmeandirc
+package irc
 
 import (
 	"strings"
 )
 
-type ircCmd int
+type Command int
 
 const (
-	CmdPing ircCmd = iota
-	CmdPrivmsg
-	CmdMode
-	CmdPart
-	CmdJoin
-	CmdNotice
-	CmdNum
+	Ping Command = iota
+	Privmsg
+	Mode
+	Part
+	Join
+	Notice
+	Num
 )
 
 // Lookup table for commands against IDs.
-var cmdMap = map[string]ircCmd{
-	"PING":    CmdPing,
-	"PRIVMSG": CmdPrivmsg,
-	"MODE":    CmdMode,
-	"PART":    CmdPart,
-	"JOIN":    CmdJoin,
-	"NOTICE":  CmdNotice,
-	"###":     CmdNum,
+var CommandIndex = map[string]Command{
+	"PING":    Ping,
+	"PRIVMSG": Privmsg,
+	"MODE":    Mode,
+	"PART":    Part,
+	"JOIN":    Join,
+	"NOTICE":  Notice,
+	"###":     Num,
 }
 
-func (c ircCmd) String() string {
-	for k, v := range cmdMap {
+func (c Command) String() string {
+	for k, v := range CommandIndex {
 		if c == v {
 			return k
 		}
@@ -36,10 +36,10 @@ func (c ircCmd) String() string {
 	return ""
 }
 
-// IrcMessage is a structured representation of an IRC message.
-type IrcMessage struct {
+// Message is a structured representation of an IRC message.
+type Message struct {
 	Raw     string
-	Command ircCmd
+	Command Command
 	Channel string   // Channel which the message belongs to, if any.
 	Origin  string   // Nick or server which originated the message.
 	Text    string   // Text of the chat.
@@ -49,27 +49,27 @@ type IrcMessage struct {
 	Nick    string
 }
 
-// IrcMessageError is returned when an IRC message cannot be parsed.
-type IrcMessageError struct {
+// MessageError is returned when an IRC message cannot be parsed.
+type MessageError struct {
 	Raw    string // the offending message
 	Reason string // reason for the error
 }
 
-func (e *IrcMessageError) Error() string {
+func (e *MessageError) Error() string {
 	return e.Reason + ": " + e.Raw
 }
 
-// ParseMessage returns a new IrcMessage populated with the data from a raw IRC message.
-func ParseMessage(msg string) (*IrcMessage, error) {
-	m := new(IrcMessage)
+// ParseMessage returns a new Message populated with the data from a raw IRC message.
+func ParseMessage(msg string) (*Message, error) {
+	m := new(Message)
 	if err := m.init(msg); err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
-func (m *IrcMessage) newErr(reason string) (e *IrcMessageError) {
-	return &IrcMessageError{
+func (m *Message) newErr(reason string) (e *MessageError) {
+	return &MessageError{
 		m.Raw,
 		reason,
 	}
@@ -103,7 +103,7 @@ func whoIs(prefix string) (nick, user string) {
 	return
 }
 
-func (m *IrcMessage) init(msg string) (e *IrcMessageError) {
+func (m *Message) init(msg string) (e *MessageError) {
 	// Trim trailing nonprinting character.
 	// This may need more delicate treatment if it turns out multiline IRC
 	// messages are a problem.
@@ -112,7 +112,7 @@ func (m *IrcMessage) init(msg string) (e *IrcMessageError) {
 	commandTokens := strings.Fields(command)
 
 	fst := commandTokens[0]
-	if cmd, ok := cmdMap[fst]; ok && cmd == CmdPing {
+	if cmd, ok := CommandIndex[fst]; ok && cmd == Ping {
 		m.Origin = content
 		m.Command = cmd
 		return
@@ -122,9 +122,9 @@ func (m *IrcMessage) init(msg string) (e *IrcMessageError) {
 	m.Nick, m.User = whoIs(origin)
 	m.Origin = m.User
 
-	cmdId, ok := cmdMap[cmd]
+	cmdId, ok := CommandIndex[cmd]
 	if !ok {
-		m.Command = CmdNum
+		m.Command = Num
 		m.Code = cmd
 		if len(commandTokens) > 2 {
 			m.Args = commandTokens[2:]
@@ -137,19 +137,19 @@ func (m *IrcMessage) init(msg string) (e *IrcMessageError) {
 
 	m.Command = cmdId
 	switch cmdId {
-	case CmdJoin:
+	case Join:
 		m.Channel = content
-	case CmdPrivmsg, CmdMode, CmdNotice:
+	case Privmsg, Mode, Notice:
 		m.Channel = commandTokens[2]
 		m.Text = content
-	case CmdPart:
+	case Part:
 		m.Channel = commandTokens[2]
 	}
 
 	return
 }
 
-func (m *IrcMessage) Matches(cmds []ircCmd) bool {
+func (m *Message) Matches(cmds []Command) bool {
 	for _, c := range cmds {
 		if c == m.Command {
 			return true
@@ -158,11 +158,11 @@ func (m *IrcMessage) Matches(cmds []ircCmd) bool {
 	return false
 }
 
-func (m *IrcMessage) HasText(s string) bool {
+func (m *Message) HasText(s string) bool {
 	return strings.Index(m.Text, s) >= 0
 }
 
-func (m *IrcMessage) TextHasAny(ss []string) bool {
+func (m *Message) TextHasAny(ss []string) bool {
 	for _, s := range ss {
 		if m.HasText(s) {
 			return true

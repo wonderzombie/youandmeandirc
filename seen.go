@@ -5,21 +5,23 @@ import (
 	"log"
 	"regexp"
 	"time"
+
+	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
 type SeenInfo struct {
-	msg IrcMessage
+	msg irc.Message
 	t   time.Time
 }
 
 func (bot *IrcBot) seenListener() (seen Listener) {
 	bot.seenList = make(map[string]SeenInfo)
 
-	seen = func(msg IrcMessage) (fired, trap bool) {
-		accepted := []ircCmd{
-			CmdPrivmsg,
-			CmdJoin,
-			CmdPart,
+	seen = func(msg irc.Message) (fired, trap bool) {
+		accepted := []irc.Command{
+			irc.Privmsg,
+			irc.Join,
+			irc.Part,
 		}
 		if !msg.Matches(accepted) {
 			return
@@ -62,7 +64,7 @@ func (sm *SeenModule) init() {
 	sm.seenMap = make(map[string]SeenInfo)
 }
 
-func (sm *SeenModule) accepts() []ircCmd {
+func (sm *SeenModule) accepts() []irc.Command {
 	return []ircCmd{
 		CmdPrivmsg,
 		CmdJoin,

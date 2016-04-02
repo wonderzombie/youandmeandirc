@@ -7,22 +7,24 @@ import (
 	// "regexp"
 	"strings"
 	"time"
+
+	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
 // ConnectFn is used to generate connections.
-type ConnectFn func() (*IrcConn, error)
+type ConnectFn func() (*irc.Conn, error)
 
 // Listeners are called when a message arrives. The first return value
 // indicates whether the message caused the listener to fire. The second return
 // value indicates whether this listener requires no other listeners to fire.
-type Listener func(IrcMessage) (bool, bool)
+type Listener func(irc.Message) (bool, bool)
 
 // TODO: replace Listener with BotListener. This will allow just to just enumerate Listeners
 // instead of the rigmarole right now, where methods on IrcBot return Listeners.
-type BotListener func(*IrcBot, IrcMessage) (bool, bool)
+type BotListener func(*IrcBot, irc.Message) (bool, bool)
 
 type IrcBot struct {
-	irc       *IrcConn
+	irc       *irc.Conn
 	listeners []Listener
 	connectFn ConnectFn
 
@@ -61,7 +63,7 @@ func (bot *IrcBot) init() (e error) {
 }
 
 func (bot *IrcBot) pingListener() (pong Listener) {
-	pong = func(msg IrcMessage) (fired, trap bool) {
+	pong = func(msg irc.Message) (fired, trap bool) {
 		if msg.Command == CmdPing {
 			bot.irc.Pong(msg.Origin)
 			fired, trap = true, true
@@ -72,7 +74,7 @@ func (bot *IrcBot) pingListener() (pong Listener) {
 }
 
 func (bot *IrcBot) joinListener() (join Listener) {
-	join = func(msg IrcMessage) (fired, trap bool) {
+	join = func(msg irc.Message) (fired, trap bool) {
 		if msg.Command != CmdJoin {
 			return
 		}
@@ -111,7 +113,7 @@ func (bot *IrcBot) onNameListener() (name Listener) {
 	// rng := rand.New(src)
 	max := len(sayings)
 
-	name = func(msg IrcMessage) (fired, trap bool) {
+	name = func(msg irc.Message) (fired, trap bool) {
 		if msg.Command != CmdPrivmsg || !strings.Contains(msg.Text, bot.irc.Nick) {
 			return
 		}
@@ -123,7 +125,7 @@ func (bot *IrcBot) onNameListener() (name Listener) {
 	return
 }
 
-func (bot *IrcBot) runListeners(msg IrcMessage) {
+func (bot *IrcBot) runListeners(msg irc.Message) {
 	for _, l := range bot.listeners {
 		// TODO: simplify this. We probably only need one and that'd be trap.
 		if _, trap := l(msg); trap {
@@ -139,7 +141,7 @@ func (bot *IrcBot) askForNames() {
 }
 
 func (bot *IrcBot) uptimeListener() (uptime Listener) {
-	uptime = func(msg IrcMessage) (fired, trap bool) {
+	uptime = func(msg irc.Message) (fired, trap bool) {
 		if msg.Command != CmdPrivmsg {
 			return
 		}
@@ -160,7 +162,7 @@ func (bot *IrcBot) namesListener() (names Listener) {
 	// This can actually be multiple lines. The termination line that you want is 366.
 	code := "353"
 
-	names = func(msg IrcMessage) (fired, trap bool) {
+	names = func(msg irc.Message) (fired, trap bool) {
 		if code != msg.Code {
 			return
 		}

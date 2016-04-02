@@ -1,10 +1,10 @@
-package youandmeandirc
+package irc
 
 import (
 	"testing"
 )
 
-type IrcMessageTest struct {
+type MessageTest struct {
 	in      string
 	command string
 	origin  string
@@ -12,7 +12,7 @@ type IrcMessageTest struct {
 	text    string
 }
 
-var tests = []IrcMessageTest{
+var tests = []MessageTest{
 	{":server NOTICE AUTH", "NOTICE", "server", "", ""},
 	{":nick!~username@host PRIVMSG #channel :chat chat chat", "PRIVMSG", "nick", "#channel", "chat chat chat"},
 	{":server PING", "PING", "server", "", ""},
@@ -35,7 +35,7 @@ func TestBasicMessageParsing(t *testing.T) {
 	}
 }
 
-func verify(tt *IrcMessageTest, mm *IrcMessage) bool {
+func verify(tt *MessageTest, mm *Message) bool {
 	expected := string(mm.Command) + mm.Origin + mm.Channel + mm.Text
 	actual := tt.command + tt.origin + tt.channel + tt.text
 	if expected != actual {
