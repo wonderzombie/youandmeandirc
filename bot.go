@@ -35,7 +35,7 @@ type IrcBot struct {
 
 	seenList map[string]SeenInfo
 
-	asleep   bool
+	asleep bool
 
 	healthList map[string]int
 

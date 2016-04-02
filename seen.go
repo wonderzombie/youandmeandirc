@@ -70,7 +70,7 @@ func (sm *SeenModule) accepts() []ircCmd {
 	}
 }
 
-func SeenListener(bot *IrcBot, msg IrcMessage) (trap bool)
+// func SeenListener(bot *IrcBot, msg IrcMessage) (trap bool)
 
-// Public API.
-func (seenMod *SeenModule) HasSeen(nick string) *SeenInfo
+// // Public API.
+// func (seenMod *SeenModule) HasSeen(nick string) *SeenInfo

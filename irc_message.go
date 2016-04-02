@@ -75,16 +75,14 @@ func (m *IrcMessage) newErr(reason string) (e *IrcMessageError) {
 	}
 }
 
-func splitMsg(msg string) (command, content string) {
+func splitMsg(msg string) (string, string) {
 	msg = strings.Trim(msg, ":")
 	if strings.Index(msg, ":") == -1 {
-		command = msg
-		return
+		return msg, ""
 	}
 
 	pieces := strings.SplitN(msg, ":", 2)
-	command, content = pieces[0], pieces[1]
-	return
+	return pieces[0], pieces[1]
 }
 
 func fromServer(prefix string) bool {
