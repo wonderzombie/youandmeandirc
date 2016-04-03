@@ -24,21 +24,29 @@ type Conn struct {
 /// Network-related.
 
 // send transmits a command to the currently connected server.
-func (irc Conn) send(s string) (int, error) {
+func (irc Conn) send(s string) error {
 	log.Println("=>", s)
-	return fmt.Fprintln(irc.conn, s)
+	_, err := fmt.Fprintln(irc.conn, s)
+	return err
+}
+
+func (irc Conn) writeln(format string, a ...interface{}) error {
+	format += "\n"
+	_, err := fmt.Fprintf(irc.conn, format, a...)
+	return err
 }
 
 // register sends the PASS, NICK, and USER commands.
 func (irc Conn) register() {
 	messages := []string{
-		irc.newPassMsg(irc.Pass),
-		irc.newNickMsg(irc.Nick),
-		irc.newUserMsg(irc.Username, irc.Realname),
+		// Pass, Nick, then User. This order matters!
+		newPassMsg(irc.Pass),
+		newNickMsg(irc.Nick),
+		newUserMsg(irc.Username, irc.Realname),
 	}
 
 	for _, m := range messages {
-		if _, err := irc.send(m); err != nil {
+		if err := irc.send(m); err != nil {
 			log.Println("Error:", err)
 		}
 	}
@@ -46,47 +54,36 @@ func (irc Conn) register() {
 
 /// Composing various kinds of messages.
 
-func (irc Conn) newPassMsg(pass string) string {
+func newPassMsg(pass string) string {
 	return fmt.Sprintf("PASS %v", pass)
 }
 
-func (irc Conn) newNickMsg(nick string) string {
+func newNickMsg(nick string) string {
 	return fmt.Sprintf("NICK %v", nick)
 }
 
-func (irc Conn) newUserMsg(username, realname string) string {
+func newUserMsg(username, realname string) string {
 	return fmt.Sprintf("USER %v * * :%v", username, realname)
-}
-
-func (irc Conn) newJoinMsg(channel string) string {
-	return fmt.Sprintf("JOIN %v", channel)
-}
-
-func (irc Conn) newPongMsg(daemon string) string {
-	return fmt.Sprintf("PONG %v", daemon)
 }
 
 /// Public methods.
 
 // Sends a message to a channel.
-func (irc Conn) Say(channel, chat string) (int, error) {
-	msg := fmt.Sprintf("PRIVMSG %v :%v", channel, chat)
-	return irc.send(msg)
+func (irc Conn) Say(channel, chat string) error {
+	return irc.writeln("PRIVMSG %v :%v", channel, chat)
 }
 
 // Joins a given channel.
-func (irc Conn) Join(channel string) (int, error) {
-	cmd := fmt.Sprintf("JOIN %v", channel)
-	return irc.send(cmd)
+func (irc Conn) Join(channel string) error {
+	return irc.writeln("JOIN %v", channel)
 }
 
-func (irc Conn) Names(channel string) (int, error) {
-	cmd := fmt.Sprintf("NAMES %v", channel)
-	return irc.send(cmd)
+func (irc Conn) Names(channel string) error {
+	return irc.writeln("NAMES %v", channel)
 }
 
 // Reads a single message from the server's output.
-func (irc Conn) Read() (m *Message, err error) {
+func (irc Conn) Read() (*Message, error) {
 	s, err := irc.reader.ReadString('\n')
 	log.Println("<=", strings.TrimRight(s, "\r\n"))
 	if err != nil {
@@ -94,25 +91,31 @@ func (irc Conn) Read() (m *Message, err error) {
 		return nil, err
 	}
 
-	m, err = ParseMessage(s)
+	m, err := ParseMessage(s)
 	if err != nil {
 		log.Println("Error parsing server message:", err)
 		return nil, err
 	}
 
-	return
+	return m, nil
 }
 
-func (irc Conn) Pong(daemon string) (int, error) {
+func (irc Conn) Pong(daemon string) error {
 	// FIXME: shouldn't this be handled automatically?
-	cmd := irc.newPongMsg(daemon)
-	return irc.send(cmd)
+	// Specifically, this is protocol-level stuff. We could (should?) hide this from the user.
+	return irc.writeln("PONG %v", daemon)
 }
 
-// Connects to IRC with the given connection.
-func (irc *Conn) Connect(c net.Conn) {
-	irc.conn = c
-	irc.reader = bufio.NewReader(irc.conn)
-	irc.register()
-	return
+// Connect initiates the IRC protocol with the given credentails.
+func Connect(n net.Conn, nick, realname, username, pass string) *Conn {
+	c := &Conn{
+		conn:     n,
+		reader:   bufio.NewReader(n),
+		Nick:     nick,
+		Realname: realname,
+		Username: username,
+		Pass:     pass,
+	}
+	c.register()
+	return c
 }
