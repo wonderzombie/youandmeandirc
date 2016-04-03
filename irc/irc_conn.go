@@ -30,8 +30,9 @@ func (irc Conn) send(s string) error {
 	return err
 }
 
-func (irc Conn) writeln(format string, a ...interface{}) error {
+func (irc Conn) sendfln(format string, a ...interface{}) error {
 	format += "\n"
+	log.Printf("=> %s", fmt.Sprintf(format, a...))
 	_, err := fmt.Fprintf(irc.conn, format, a...)
 	return err
 }
@@ -70,16 +71,16 @@ func newUserMsg(username, realname string) string {
 
 // Sends a message to a channel.
 func (irc Conn) Say(channel, chat string) error {
-	return irc.writeln("PRIVMSG %v :%v", channel, chat)
+	return irc.sendfln("PRIVMSG %v :%v", channel, chat)
 }
 
 // Joins a given channel.
 func (irc Conn) Join(channel string) error {
-	return irc.writeln("JOIN %v", channel)
+	return irc.sendfln("JOIN %v", channel)
 }
 
 func (irc Conn) Names(channel string) error {
-	return irc.writeln("NAMES %v", channel)
+	return irc.sendfln("NAMES %v", channel)
 }
 
 // Reads a single message from the server's output.
@@ -96,7 +97,7 @@ func (irc Conn) Read() (*Message, error) {
 func (irc Conn) Pong(daemon string) error {
 	// FIXME: shouldn't this be handled automatically?
 	// Specifically, this is protocol-level stuff. We could (should?) hide this from the user.
-	return irc.writeln("PONG %v", daemon)
+	return irc.sendfln("PONG %v", daemon)
 }
 
 // Connect initiates the IRC protocol with the given credentails.

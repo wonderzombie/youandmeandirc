@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
 func (bot *IrcBot) combatListener() (combat Listener) {
@@ -19,8 +21,8 @@ func (bot *IrcBot) combatListener() (combat Listener) {
 		"stabs",
 	}
 
-	combat = func(msg IrcMessage) (fired, trap bool) {
-		if msg.Command != CmdPrivmsg {
+	combat = func(msg irc.Message) (fired, trap bool) {
+		if msg.Command != irc.Privmsg {
 			return
 		}
 

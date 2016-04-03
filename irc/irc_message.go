@@ -183,3 +183,12 @@ func (m *Message) TextSortaHasAny(ss []string) bool {
 	}
 	return false
 }
+
+func (m *Message) Matches(cmds []Command) bool {
+	for _, c := range cmds {
+		if m.Command == c {
+			return true
+		}
+	}
+	return false
+}

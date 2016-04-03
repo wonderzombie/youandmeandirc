@@ -5,6 +5,8 @@ import (
 	"log"
 	"regexp"
 	"time"
+
+	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
 type Point struct {
@@ -26,8 +28,8 @@ var scoreListRe = regexp.MustCompile("(\\w+), scores?\\?")
 var scoreMap = make(map[string]Score, 0)
 
 func (bot *IrcBot) scoreListener() (scorer Listener) {
-	scorer = func(msg IrcMessage) (fired, trap bool) {
-		if msg.Command != CmdPrivmsg {
+	scorer = func(msg irc.Message) (fired, trap bool) {
+		if msg.Command != irc.Privmsg {
 			return
 		}
 
@@ -52,7 +54,7 @@ func (bot *IrcBot) scoreListener() (scorer Listener) {
 	return
 }
 
-func (bot *IrcBot) handleScoreChange(msg IrcMessage) (fired, trap bool) {
+func (bot *IrcBot) handleScoreChange(msg irc.Message) (fired, trap bool) {
 	scoreChangeMatch := scoreChangeRe.FindStringSubmatch(msg.Text)
 	if len(scoreChangeMatch) == 0 {
 		return
@@ -95,7 +97,7 @@ func (bot *IrcBot) handleScoreChange(msg IrcMessage) (fired, trap bool) {
 	return true, true
 }
 
-func (bot *IrcBot) handleScoreRequest(msg IrcMessage) (fired, trap bool) {
+func (bot *IrcBot) handleScoreRequest(msg irc.Message) (fired, trap bool) {
 	scoreReqMatch := scoreListRe.FindStringSubmatch(msg.Text)
 	if len(scoreReqMatch) == 0 {
 		return
@@ -121,7 +123,7 @@ func (bot *IrcBot) handleScoreRequest(msg IrcMessage) (fired, trap bool) {
 	return true, true
 }
 
-func (bot *IrcBot) handleMyScoreRequest(msg IrcMessage) (fired, trap bool) {
+func (bot *IrcBot) handleMyScoreRequest(msg irc.Message) (fired, trap bool) {
 	myScoreMatch := myScoreRe.FindStringSubmatch(msg.Text)
 	if len(myScoreMatch) == 0 {
 		return

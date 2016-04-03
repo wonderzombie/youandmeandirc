@@ -88,3 +88,5 @@ An extremely rough first attempt at an IRC library implemented in Go.
 ### ramblings of questionable value
 
 You can partition the protocol into two major parts, at least when it comes to messages. You have the "chat as application" level and the "chat as protocol" level. Awkward terms, but here's what I mean: PRIVMSG, NOTICE, MODE, and so on are all text. They are also events that a user-agent should display to the user. Numeric codes are "spammy" but only because they're closer to the protocol layer. There's stuff users might look at, sure, but they're not central to the intended use case of IRC: chatting.
+
+Another thing we want to do to fix this nonsense with the returning a closure: accept an interface instead of a Listener. That interface has one function, Fire(), with some args and some whatever else. As long as you have that, you're golden.

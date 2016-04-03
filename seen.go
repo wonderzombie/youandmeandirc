@@ -65,10 +65,10 @@ func (sm *SeenModule) init() {
 }
 
 func (sm *SeenModule) accepts() []irc.Command {
-	return []ircCmd{
-		CmdPrivmsg,
-		CmdJoin,
-		CmdPart,
+	return []irc.Command{
+		irc.Privmsg,
+		irc.Join,
+		irc.Part,
 	}
 }
 

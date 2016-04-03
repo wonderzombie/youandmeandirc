@@ -5,6 +5,8 @@ import (
 	"log"
 	"regexp"
 	"strings"
+
+	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
 func searchReplForRegex(rgx string) (search, repl string, ok bool) {
@@ -22,8 +24,8 @@ func searchReplForRegex(rgx string) (search, repl string, ok bool) {
 }
 
 func (bot *IrcBot) regexListener() (l Listener) {
-	l = func(msg IrcMessage) (fired, trap bool) {
-		if msg.Command != CmdPrivmsg {
+	l = func(msg irc.Message) (fired, trap bool) {
+		if msg.Command != irc.Privmsg {
 			return
 		}
 

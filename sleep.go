@@ -4,19 +4,21 @@ import (
 	// "fmt"
 	"log"
 	"time"
+
+	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
 func (bot *IrcBot) sleepListener() (sleep Listener) {
 	sleepMinutes := time.Duration(5) * time.Minute
 	var sleptAt time.Time
 
-	sleep = func(msg IrcMessage) (fired, trap bool) {
-		if msg.Command != CmdPrivmsg {
+	sleep = func(msg irc.Message) (fired, trap bool) {
+		if msg.Command != irc.Privmsg {
 			return
 		}
 
 		if bot.asleep {
-			if msg.HasText("wake up") && msg.HasText(bot.irc.Nick) {
+			if msg.TextHas("wake up") && msg.TextHas(bot.irc.Nick) {
 				// wake up
 				bot.asleep = false
 				bot.irc.Say(msg.Channel, "I'm awake! I'm awake!")
@@ -34,7 +36,7 @@ func (bot *IrcBot) sleepListener() (sleep Listener) {
 			return true, true
 		}
 
-		if msg.Command != CmdPrivmsg || !msg.HasText(bot.irc.Nick) {
+		if msg.Command != irc.Privmsg || !msg.TextHas(bot.irc.Nick) {
 			return
 		}
 
