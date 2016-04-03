@@ -13,10 +13,11 @@ const (
 	Part
 	Join
 	Notice
-	Num
+	Num // numeric commands
 )
 
 // Lookup table for commands against IDs.
+// There's no key for Num on purpose.
 var CommandIndex = map[string]Command{
 	"PING":    Ping,
 	"PRIVMSG": Privmsg,
@@ -24,7 +25,6 @@ var CommandIndex = map[string]Command{
 	"PART":    Part,
 	"JOIN":    Join,
 	"NOTICE":  Notice,
-	"###":     Num,
 }
 
 func (c Command) String() string {
@@ -90,17 +90,33 @@ func fromServer(prefix string) bool {
 	return strings.Index(prefix, "!") == -1
 }
 
-func whoIs(prefix string) (nick, user string) {
+func whoIs(prefix string) (string, string) {
 	prefix = strings.Trim(prefix, ":")
 	if fromServer(prefix) {
 		return "", prefix
 	}
 
-	pp := strings.Split(prefix, "@")
-	ss := strings.Split(pp[0], "!")
-	nick = ss[0]
-	user = strings.Trim(ss[1], "~")
-	return
+	// Technically, these are not all required, such as if it's just a nickname, without username or host.
+	// We'll delineate this way:
+	//     somenick!~someuser@hostname
+	//     0       ^^        ^
+	bangPos := strings.Index(prefix, "!")
+	if bangPos == -1 {
+		bangPos = len(prefix) + 1
+	}
+	tildePos := strings.Index(prefix, "~")
+	if tildePos == -1 {
+		tildePos = bangPos
+	}
+	atPos := strings.Index(prefix, "@")
+	if atPos == -1 {
+		atPos = bangPos
+	}
+
+	nick := prefix[0 : bangPos-1]
+	user := prefix[tildePos+1 : atPos-1]
+
+	return nick, user
 }
 
 func (m *Message) init(msg string) (e *MessageError) {
