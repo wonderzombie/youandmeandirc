@@ -21,10 +21,10 @@ const (
 var CommandIndex = map[string]Command{
 	"PING":    Ping,
 	"PRIVMSG": Privmsg,
-	"MODE":    Mode,
-	"PART":    Part,
+	"MODE":    Mode, // recognized but ignored
+	"PART":    Part, // recognized but ignored
 	"JOIN":    Join,
-	"NOTICE":  Notice,
+	"NOTICE":  Notice, // recognized but ignored
 }
 
 func (c Command) String() string {
@@ -41,7 +41,7 @@ type Message struct {
 	Raw     string
 	Command Command
 	Channel string   // Channel which the message belongs to, if any.
-	Origin  string   // Nick or server which originated the message.
+	Source  string   // Nick or server which originated the message.
 	Text    string   // Text of the chat.
 	Code    string   // Command code.
 	Args    []string // Misc params.
@@ -61,18 +61,11 @@ func (e *MessageError) Error() string {
 
 // ParseMessage returns a new Message populated with the data from a raw IRC message.
 func ParseMessage(msg string) (*Message, error) {
-	m := new(Message)
-	if err := m.init(msg); err != nil {
+	m, err := NewMessage(msg)
+	if err != nil {
 		return nil, err
 	}
 	return m, nil
-}
-
-func (m *Message) newErr(reason string) (e *MessageError) {
-	return &MessageError{
-		m.Raw,
-		reason,
-	}
 }
 
 func splitMsg(msg string) (string, string) {
@@ -100,6 +93,7 @@ func whoIs(prefix string) (string, string) {
 	// We'll delineate this way:
 	//     somenick!~someuser@hostname
 	//     0       ^^        ^
+	// In the absence of ! ~ or @ we'll clip it to bangPos, which itself defaults to the length of the string.
 	bangPos := strings.Index(prefix, "!")
 	if bangPos == -1 {
 		bangPos = len(prefix) + 1
@@ -119,40 +113,44 @@ func whoIs(prefix string) (string, string) {
 	return nick, user
 }
 
-func (m *Message) init(msg string) (e *MessageError) {
+func NewMessage(msg string) (*Message, *MessageError) {
+	m := &Message{}
 	// Trim trailing nonprinting character.
-	// This may need more delicate treatment if it turns out multiline IRC
-	// messages are a problem.
 	msg = strings.Trim(strings.TrimSpace(msg), "\x01")
 	command, content := splitMsg(msg)
 	commandTokens := strings.Fields(command)
 
-	fst := commandTokens[0]
-	if cmd, ok := CommandIndex[fst]; ok && cmd == Ping {
-		m.Origin = content
+	// Ping is easy to rule out since it's two tokens.
+	tok := commandTokens[0]
+	if cmd := CommandIndex[tok]; cmd == Ping {
+		m.Source = content
 		m.Command = cmd
-		return
+		return m, nil
 	}
 
-	origin, cmd := commandTokens[0], commandTokens[1]
-	m.Nick, m.User = whoIs(origin)
-	m.Origin = m.User
+	source, cmd := commandTokens[0], commandTokens[1]
+	m.Nick, m.User = whoIs(source)
+	m.Source = m.User
 
-	cmdId, ok := CommandIndex[cmd]
+	id, ok := CommandIndex[cmd]
+	// A miss means this is probably a numeric code.
+	// https://tools.ietf.org/html/rfc2812#section-5.1
 	if !ok {
 		m.Command = Num
 		m.Code = cmd
+		// Sometimes there's extra stuff, so don't drop it.
 		if len(commandTokens) > 2 {
 			m.Args = commandTokens[2:]
 		}
 		if content != "" {
 			m.Text = content
 		}
-		return
+		return m, nil
 	}
 
-	m.Command = cmdId
-	switch cmdId {
+	// This is a user-relevant event.
+	m.Command = id
+	switch id {
 	case Join:
 		m.Channel = content
 	case Privmsg, Mode, Notice:
@@ -162,10 +160,10 @@ func (m *Message) init(msg string) (e *MessageError) {
 		m.Channel = commandTokens[2]
 	}
 
-	return
+	return m, nil
 }
 
-func (m *Message) Matches(cmds []Command) bool {
+func (m *Message) MatchesAny(cmds []Command) bool {
 	for _, c := range cmds {
 		if c == m.Command {
 			return true
@@ -174,13 +172,28 @@ func (m *Message) Matches(cmds []Command) bool {
 	return false
 }
 
-func (m *Message) HasText(s string) bool {
-	return strings.Index(m.Text, s) >= 0
+func (m *Message) TextHas(s string) bool {
+	return strings.Contains(m.Text, s)
 }
 
 func (m *Message) TextHasAny(ss []string) bool {
 	for _, s := range ss {
-		if m.HasText(s) {
+		if m.TextHas(s) {
+			return true
+		}
+	}
+	return false
+}
+
+// TextSortaHas does a case-insensitive comparison.
+func (m *Message) TextSortaHas(s string) bool {
+	l, r := strings.ToLower(m.Text), strings.ToLower(s)
+	return strings.Contains(l, r)
+}
+
+func (m *Message) TextSortaHasAny(ss []string) bool {
+	for _, s := range ss {
+		if m.TextSortaHas(s) {
 			return true
 		}
 	}

@@ -36,7 +36,7 @@ func TestBasicMessageParsing(t *testing.T) {
 }
 
 func verify(tt *MessageTest, mm *Message) bool {
-	expected := string(mm.Command) + mm.Origin + mm.Channel + mm.Text
+	expected := string(mm.Command) + mm.Source + mm.Channel + mm.Text
 	actual := tt.command + tt.origin + tt.channel + tt.text
 	if expected != actual {
 		return false
