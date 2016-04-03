@@ -1,13 +1,12 @@
 package irc
 
-import (
-	"strings"
-)
+import "strings"
 
 type Command int
 
 const (
-	Ping Command = iota
+	_ Command = iota
+	Ping
 	Privmsg
 	Mode
 	Part
@@ -49,25 +48,8 @@ type Message struct {
 	Nick    string
 }
 
-// MessageError is returned when an IRC message cannot be parsed.
-type MessageError struct {
-	Raw    string // the offending message
-	Reason string // reason for the error
-}
-
-func (e *MessageError) Error() string {
-	return e.Reason + ": " + e.Raw
-}
-
-// ParseMessage returns a new Message populated with the data from a raw IRC message.
-func ParseMessage(msg string) (*Message, error) {
-	m, err := NewMessage(msg)
-	if err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
+// splitMsg splits a string on a colon into the parts before and after.
+// Typically this means it's a PRIVMSG or some other user-relevant event.
 func splitMsg(msg string) (string, string) {
 	msg = strings.Trim(msg, ":")
 	if strings.Index(msg, ":") == -1 {
@@ -83,6 +65,7 @@ func fromServer(prefix string) bool {
 	return strings.Index(prefix, "!") == -1
 }
 
+// whoIs returns the USER and NICK for the given prefix.
 func whoIs(prefix string) (string, string) {
 	prefix = strings.Trim(prefix, ":")
 	if fromServer(prefix) {
@@ -107,13 +90,13 @@ func whoIs(prefix string) (string, string) {
 		atPos = bangPos
 	}
 
-	nick := prefix[0 : bangPos-1]
-	user := prefix[tildePos+1 : atPos-1]
+	nick := prefix[0:bangPos]
+	user := prefix[tildePos+1 : atPos]
 
-	return nick, user
+	return user, nick
 }
 
-func NewMessage(msg string) (*Message, *MessageError) {
+func NewMessage(msg string) *Message {
 	m := &Message{}
 	// Trim trailing nonprinting character.
 	msg = strings.Trim(strings.TrimSpace(msg), "\x01")
@@ -122,10 +105,10 @@ func NewMessage(msg string) (*Message, *MessageError) {
 
 	// Ping is easy to rule out since it's two tokens.
 	tok := commandTokens[0]
-	if cmd := CommandIndex[tok]; cmd == Ping {
+	if cmd, ok := CommandIndex[tok]; ok && cmd == Ping {
 		m.Source = content
 		m.Command = cmd
-		return m, nil
+		return m
 	}
 
 	source, cmd := commandTokens[0], commandTokens[1]
@@ -145,7 +128,7 @@ func NewMessage(msg string) (*Message, *MessageError) {
 		if content != "" {
 			m.Text = content
 		}
-		return m, nil
+		return m
 	}
 
 	// This is a user-relevant event.
@@ -160,7 +143,7 @@ func NewMessage(msg string) (*Message, *MessageError) {
 		m.Channel = commandTokens[2]
 	}
 
-	return m, nil
+	return m
 }
 
 func (m *Message) MatchesAny(cmds []Command) bool {
@@ -191,6 +174,7 @@ func (m *Message) TextSortaHas(s string) bool {
 	return strings.Contains(l, r)
 }
 
+// TextSortaHasAny returns true if the message text contains any one of ss, ignoring case.
 func (m *Message) TextSortaHasAny(ss []string) bool {
 	for _, s := range ss {
 		if m.TextSortaHas(s) {

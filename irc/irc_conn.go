@@ -90,14 +90,7 @@ func (irc Conn) Read() (*Message, error) {
 		log.Println("Error reading from server:", err)
 		return nil, err
 	}
-
-	m, err := ParseMessage(s)
-	if err != nil {
-		log.Println("Error parsing server message:", err)
-		return nil, err
-	}
-
-	return m, nil
+	return NewMessage(s), nil
 }
 
 func (irc Conn) Pong(daemon string) error {
