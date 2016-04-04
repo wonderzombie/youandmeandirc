@@ -10,10 +10,10 @@ import (
 
 // Conn represents a connection to an IRC server.
 type Conn struct {
-	Username string
-	Pass     string
-	Nick     string
-	Realname string
+	username string
+	pass     string
+	nick     string
+	realname string
 
 	conn   net.Conn
 	reader *bufio.Reader
@@ -41,9 +41,9 @@ func (irc Conn) sendfln(format string, a ...interface{}) error {
 func (irc Conn) register() {
 	messages := []string{
 		// Pass, Nick, then User. This order matters!
-		newPassMsg(irc.Pass),
-		newNickMsg(irc.Nick),
-		newUserMsg(irc.Username, irc.Realname),
+		newPassMsg(irc.pass),
+		newNickMsg(irc.nick),
+		newUserMsg(irc.username, irc.realname),
 	}
 
 	for _, m := range messages {
@@ -83,6 +83,14 @@ func (irc Conn) Names(channel string) error {
 	return irc.sendfln("NAMES %v", channel)
 }
 
+func (irc Conn) SetNick(nick string) error {
+	if err := irc.sendfln(newNickMsg(nick)); err != nil {
+		return err
+	}
+	irc.nick = nick
+	return nil
+}
+
 // Reads a single message from the server's output.
 func (irc Conn) Read() (*Message, error) {
 	s, err := irc.reader.ReadString('\n')
@@ -100,15 +108,24 @@ func (irc Conn) Pong(daemon string) error {
 	return irc.sendfln("PONG %v", daemon)
 }
 
+func (irc Conn) Nick() string {
+	return irc.nick
+}
+
+// Should probably DTRT IRC protocol-wise, like sending a quit message.
+func (irc Conn) Disconnect() error {
+	return irc.conn.Close()
+}
+
 // Connect initiates the IRC protocol with the given credentails.
 func Connect(n net.Conn, nick, realname, username, pass string) *Conn {
 	c := &Conn{
 		conn:     n,
 		reader:   bufio.NewReader(n),
-		Nick:     nick,
-		Realname: realname,
-		Username: username,
-		Pass:     pass,
+		nick:     nick,
+		realname: realname,
+		username: username,
+		pass:     pass,
 	}
 	c.register()
 	return c

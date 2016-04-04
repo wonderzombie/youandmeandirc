@@ -42,13 +42,18 @@ type IrcBot struct {
 	healthList map[string]int
 
 	rng *rand.Rand
+
+	triggers map[TriggerId]Trigger
 }
 
 type TriggerId string
 
+// API is like this, roughly:
+// Your module implements some function that returns some item that satisfies this interface.
+// Maybe you implement it in a series of structs and whatnot, culminating in transparent call in Fire(), to your entry-point.
 type Trigger interface {
 	Id() TriggerId
-	Fire(ids []TriggerId, msg string) bool
+	Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) bool
 }
 
 func (bot *IrcBot) init() (e error) {
@@ -69,8 +74,43 @@ func (bot *IrcBot) init() (e error) {
 	return nil
 }
 
-func (bot *IrcBot) Register(listener *Listener) {
+func (bot *IrcBot) Register(t Trigger) {
+	// bot.triggers = append(bot.triggers, t)
+	id := t.Id()
+	bot.triggers[id] = t
+}
 
+func (bot *IrcBot) RegisterAll(ts ...Trigger) {
+	for _, t := range ts {
+		bot.Register(t)
+	}
+}
+
+func (bot *IrcBot) Trigger(id TriggerId) Trigger {
+	t, ok := bot.triggers[id]
+	if !ok {
+		return nil
+	}
+	return t
+}
+
+type PingTrigger struct{}
+
+func (p *PingTrigger) Id() TriggerId {
+	return TriggerId("ping")
+}
+
+func (p *PingTrigger) Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) bool {
+	if len(ids) > 0 {
+		log.Println("Warning: other triggers called before: ", ids)
+	}
+
+	if msg.Command == irc.Ping {
+		bot.irc.Pong(msg.Source)
+		return false
+	}
+
+	return true
 }
 
 func (bot *IrcBot) pingListener() (pong Listener) {
@@ -84,6 +124,28 @@ func (bot *IrcBot) pingListener() (pong Listener) {
 	return
 }
 
+type NamesTrigger struct {
+	NamesSet map[string]bool
+}
+
+func (t *NamesTrigger) Id() TriggerId {
+	return TriggerId("names")
+}
+
+func (t *NamesTrigger) Fire(bot *IrcBot, msg irc.Message, ids []TriggerId) bool {
+	if msg.Command != irc.Join {
+		return false
+	}
+
+	_, ok := t.NamesSet[msg.Source]
+	if !ok && msg.Nick != bot.irc.Nick() {
+		log.Println("Adding nick to list of names:", msg.Nick)
+		t.NamesSet[msg.Nick] = true
+	}
+
+	return true
+}
+
 func (bot *IrcBot) joinListener() (join Listener) {
 	join = func(msg irc.Message) (fired, trap bool) {
 		if msg.Command != irc.Join {
@@ -91,7 +153,7 @@ func (bot *IrcBot) joinListener() (join Listener) {
 		}
 
 		_, ok := bot.namesSet[msg.Nick]
-		if !ok && msg.Nick != bot.irc.Nick {
+		if !ok && msg.Nick != bot.irc.Nick() {
 			log.Println("Adding nick to list of names:", msg.Nick)
 			// bot.names = append(bot.names, msg.Nick)
 			bot.namesSet[msg.Nick] = true
@@ -125,7 +187,7 @@ func (bot *IrcBot) onNameListener() (name Listener) {
 	max := len(sayings)
 
 	name = func(msg irc.Message) (fired, trap bool) {
-		if msg.Command != irc.Privmsg || !strings.Contains(msg.Text, bot.irc.Nick) {
+		if msg.Command != irc.Privmsg || !strings.Contains(msg.Text, bot.irc.Nick()) {
 			return
 		}
 
@@ -134,6 +196,15 @@ func (bot *IrcBot) onNameListener() (name Listener) {
 		return true, true
 	}
 	return
+}
+
+func (bot *IrcBot) runTriggers(msg irc.Message) {
+	var triggered []TriggerId
+	for id, t := range bot.triggers {
+		if fired := t.Fire(msg, bot, triggered); fired {
+			triggered = append(triggered, id)
+		}
+	}
 }
 
 func (bot *IrcBot) runListeners(msg irc.Message) {
@@ -184,7 +255,7 @@ func (bot *IrcBot) namesListener() (names Listener) {
 			name = strings.Trim(name, ops)
 			bot.namesSet[name] = true
 		}
-		bot.namesSet[bot.irc.Nick] = true
+		bot.namesSet[bot.irc.Nick()] = true
 
 		log.Println("Names are now:", bot.namesSet)
 
@@ -227,7 +298,7 @@ func (bot *IrcBot) Start(ircConn *irc.Conn) {
 		}
 
 		// TODO: uh, look at the actual codes so we know when we've joined. This is a bit hacky.
-		if !joined && m.Nick == bot.irc.Nick && m.Command == irc.Mode {
+		if !joined && m.Nick == bot.irc.Nick() && m.Command == irc.Mode {
 			bot.irc.Join("#testbot")
 			// Sorta dumb, but basically don't count uptime until we've joined a channel.
 			bot.uptime = time.Now()

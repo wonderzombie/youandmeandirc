@@ -111,7 +111,7 @@ func (bot *IrcBot) handleScoreRequest(msg irc.Message) (fired, trap bool) {
 	for _, nick := range bot.names {
 		out := fmt.Sprintf("%v has no score.", nick)
 		if score, ok := scoreMap[nick]; ok {
-			if nick == bot.irc.Nick {
+			if nick == bot.irc.Nick() {
 				out = fmt.Sprintf("My score is %v.", score.Total)
 			} else {
 				out = fmt.Sprintf("%v's score is %v.", nick, score.Total)
