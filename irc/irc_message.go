@@ -5,14 +5,14 @@ import "strings"
 type Command int
 
 const (
-	_ Command = iota
-	Ping
+	Ping Command = 1 + iota
 	Privmsg
 	Mode
 	Part
 	Join
 	Notice
 	Num // numeric commands
+	Quit
 )
 
 // Lookup table for commands against IDs.

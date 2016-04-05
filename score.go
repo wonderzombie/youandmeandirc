@@ -54,16 +54,18 @@ func (bot *IrcBot) scoreListener() (scorer Listener) {
 	return
 }
 
-func (bot *IrcBot) handleScoreChange(msg irc.Message) (fired, trap bool) {
+func (bot *IrcBot) handleScoreChange(msg irc.Message) (bool, bool) {
 	scoreChangeMatch := scoreChangeRe.FindStringSubmatch(msg.Text)
 	if len(scoreChangeMatch) == 0 {
-		return
+		return false, false
 	}
 
 	nick := scoreChangeMatch[1]
-	if !has(bot.names, nick) {
+	_, ok := bot.namesSet[nick]
+
+	if !ok {
 		log.Println("Skipping because this isn't a nick for someone present:", nick)
-		return
+		return false, false
 	}
 
 	delta := -1
@@ -108,7 +110,7 @@ func (bot *IrcBot) handleScoreRequest(msg irc.Message) (fired, trap bool) {
 		return true, true
 	}
 
-	for _, nick := range bot.names {
+	for nick := range bot.namesSet {
 		out := fmt.Sprintf("%v has no score.", nick)
 		if score, ok := scoreMap[nick]; ok {
 			if nick == bot.irc.Nick() {

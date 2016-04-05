@@ -21,8 +21,6 @@ type Conn struct {
 	host, port string
 }
 
-/// Network-related.
-
 // send transmits a command to the currently connected server.
 func (irc Conn) send(s string) error {
 	log.Println("=>", s)
@@ -30,10 +28,11 @@ func (irc Conn) send(s string) error {
 	return err
 }
 
+// sendfln is a thin wrapper around *printf.
 func (irc Conn) sendfln(format string, a ...interface{}) error {
-	format += "\n"
-	log.Printf("=> %s", fmt.Sprintf(format, a...))
-	_, err := fmt.Fprintf(irc.conn, format, a...)
+	msg := fmt.Sprintf(format+"\n", a...)
+	log.Printf("=> %s", msg)
+	_, err := fmt.Print(irc.conn, msg)
 	return err
 }
 
@@ -99,7 +98,15 @@ func (irc Conn) Read() (*Message, error) {
 		log.Println("Error reading from server:", err)
 		return nil, err
 	}
-	return NewMessage(s), nil
+
+	m := NewMessage(s)
+	if m.Command == Ping {
+		if err := irc.Pong(m.Source); err != nil {
+			log.Printf("Error trying to pong: %v", err)
+		}
+	}
+
+	return m, nil
 }
 
 func (irc Conn) Pong(daemon string) error {
@@ -114,6 +121,7 @@ func (irc Conn) Nick() string {
 
 // Should probably DTRT IRC protocol-wise, like sending a quit message.
 func (irc Conn) Disconnect() error {
+	irc.sendfln("QUIT :why do you hate me")
 	return irc.conn.Close()
 }
 

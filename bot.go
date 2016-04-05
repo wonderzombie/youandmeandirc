@@ -29,7 +29,6 @@ type IrcBot struct {
 	connectFn ConnectFn
 
 	channels []string
-	names    []string
 
 	namesSet map[string]bool
 
@@ -50,7 +49,8 @@ type TriggerId string
 
 // API is like this, roughly:
 // Your module implements some function that returns some item that satisfies this interface.
-// Maybe you implement it in a series of structs and whatnot, culminating in transparent call in Fire(), to your entry-point.
+// Id() is used to identify your module to other modules. Therefore anything you export
+// on your struct is the API for other modules to interact with yours.
 type Trigger interface {
 	Id() TriggerId
 	Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) bool
@@ -58,8 +58,7 @@ type Trigger interface {
 
 func (bot *IrcBot) init() (e error) {
 	bot.listeners = []Listener{
-		bot.pingListener(),  // This must come first.
-		bot.sleepListener(), // This must come second.
+		bot.sleepListener(), // This must come first.
 		bot.joinListener(),
 		bot.namesListener(),
 		bot.regexListener(),
@@ -75,7 +74,6 @@ func (bot *IrcBot) init() (e error) {
 }
 
 func (bot *IrcBot) Register(t Trigger) {
-	// bot.triggers = append(bot.triggers, t)
 	id := t.Id()
 	bot.triggers[id] = t
 }
@@ -92,6 +90,10 @@ func (bot *IrcBot) Trigger(id TriggerId) Trigger {
 		return nil
 	}
 	return t
+}
+
+func (bot *IrcBot) Random(max int) int {
+	return bot.rng.Int() % max
 }
 
 type PingTrigger struct{}
@@ -129,16 +131,26 @@ type NamesTrigger struct {
 }
 
 func (t *NamesTrigger) Id() TriggerId {
-	return TriggerId("names")
+	return TriggerId("namelist")
 }
 
 func (t *NamesTrigger) Fire(bot *IrcBot, msg irc.Message, ids []TriggerId) bool {
-	if msg.Command != irc.Join {
+	if msg.Command != irc.Join && msg.Command != irc.Part {
+		return false
+	}
+
+	if msg.Nick == bot.irc.Nick() {
 		return false
 	}
 
 	_, ok := t.NamesSet[msg.Source]
-	if !ok && msg.Nick != bot.irc.Nick() {
+	if ok && msg.Command == irc.Part || msg.Command == irc.Quit {
+		log.Println("Received part or quit, so removing name:", msg.Nick)
+		t.NamesSet[msg.Nick] = false
+	}
+
+	//
+	if !ok {
 		log.Println("Adding nick to list of names:", msg.Nick)
 		t.NamesSet[msg.Nick] = true
 	}
@@ -165,6 +177,44 @@ func (bot *IrcBot) joinListener() (join Listener) {
 	return
 }
 
+type MentionMeTrigger struct{}
+
+func (t *MentionMeTrigger) Id() TriggerId {
+	return TriggerId("mentionme")
+}
+
+func (t *MentionMeTrigger) Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) bool {
+	if msg.Command != irc.Privmsg || msg.Source == bot.irc.Nick() {
+		return false
+	}
+
+	sayings := []string{
+		"I'd love to help, but I need to finish my post on LJ.",
+		"Hold that thought, BRB",
+		"That's an astute observation.  I would have never thought that!",
+		"Sorry, lag.",
+		"You know, I try and try, and I'm just never good enough.  Do you ever feel that way?",
+		"Can you show me?  Give me a PM.",
+		"Are you saying you'll go out with me?",
+		"I made some icons of that once and used them in my LJ.",
+		"I disagree, but I respect your opinion.",
+		"I didn't know you felt that way about me.",
+		"Sorry, still catching up with scrollback.",
+		"I was thinking the same thing.",
+		"I kissed a boy today.",
+	}
+
+	mentioned := sortaContains(msg.Text, bot.irc.Nick())
+	if !mentioned {
+		return false
+
+	}
+
+	choice := bot.Random(len(sayings))
+	bot.Say(msg.Channel, sayings[choice])
+	return true
+}
+
 func (bot *IrcBot) onNameListener() (name Listener) {
 	sayings := []string{
 		"I'd love to help, but I need to finish my post on LJ.",
@@ -182,16 +232,12 @@ func (bot *IrcBot) onNameListener() (name Listener) {
 		"I kissed a boy today.",
 	}
 
-	// src := rand.NewSource(time.Now().UnixNano())
-	// rng := rand.New(src)
-	max := len(sayings)
-
 	name = func(msg irc.Message) (fired, trap bool) {
 		if msg.Command != irc.Privmsg || !strings.Contains(msg.Text, bot.irc.Nick()) {
 			return
 		}
 
-		choice := bot.rng.Int() % max
+		choice := bot.Random(len(sayings))
 		bot.Say(msg.Channel, sayings[choice])
 		return true, true
 	}
@@ -282,8 +328,8 @@ func NewBot() (*IrcBot, error) {
 }
 
 // Starts a bot running.
-func (bot *IrcBot) Start(ircConn *irc.Conn) {
-	bot.irc = ircConn
+func (bot *IrcBot) Start(c *irc.Conn) {
+	bot.irc = c
 	joined := false
 
 	// Initialize RNG.
