@@ -2,11 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	irclib "github.com/wonderzombie/youandmeandirc"
+	"log"
 	"net"
 	"strings"
 	"time"
-	irclib "youandmeandirc"
 )
 
 // Bot layer.
@@ -29,7 +29,12 @@ func init() {
 }
 
 func main() {
-	fmt.Println("hello youandmeandirc")
+	log.Println("hello youandmeandirc")
+
+	bot, err := irclib.NewBot()
+	if err != nil {
+		log.Fatalf("Unable to create bot:", err)
+	}
 
 	addr := net.JoinHostPort(*host, *port)
 	timeout, _ := time.ParseDuration("1m")
@@ -40,42 +45,12 @@ func main() {
 		Nick:     *nick,
 		Realname: "...",
 	}
+
 	// TODO(wonderzombie): Fix this so that IrcConn takes a closure, or something
 	// which can generate net.Conn items for it.
 	conn, _ := net.DialTimeout("tcp", addr, timeout)
 	defer conn.Close()
 	irc.Connect(conn)
 
-	joined := false
-	for {
-		m, err := irc.Read()
-		if err != nil {
-			fmt.Println("Skipping message: ", m.Raw)
-			continue
-		}
-
-		fmt.Print("<=", m.Raw)
-
-		if m.Command == "PING" {
-			daemon := m.Params[0]
-			irc.Pong(daemon)
-			continue
-		}
-
-		if !joined && m.Origin == *nick && m.Command == "MODE" {
-			// We've finished connecting. Join the channel.
-			irc.Join(*channel)
-			joined = true
-		} else if m.Command == "PRIVMSG" && m.Channel == *channel {
-			if hasMyName(m.Text) {
-				resp := "zzz"
-				if strings.Contains(m.Text, "ACTION") {
-					resp = "what are you doing"
-				} else if m.Origin == "trapro" {
-					resp = "trapro sux"
-				}
-				irc.Say(*channel, resp)
-			}
-		}
-	}
+	bot.Start(irc)
 }
