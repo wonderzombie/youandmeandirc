@@ -56,7 +56,7 @@ func (bot *IrcBot) regexListener() (l Listener) {
 			return
 		}
 
-		replaced := re.ReplaceAllString(seen.msg.Text, repl)
+		replaced := re.ReplaceAllString(seen.Message.Text, repl)
 		chat := fmt.Sprintf("%v actually meant: %v", msg.Nick, replaced)
 		bot.irc.Say(msg.Channel, chat)
 

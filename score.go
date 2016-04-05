@@ -77,8 +77,8 @@ func (bot *IrcBot) handleScoreChange(msg irc.Message) (fired, trap bool) {
 	reason := msg.Text
 	when := time.Now()
 	if seenInfo, ok := bot.seenList[granter]; ok {
-		reason = seenInfo.msg.Text
-		when = seenInfo.t
+		reason = seenInfo.Message.Text
+		when = seenInfo.Timestamp
 	}
 	newPoint := Point{Granter: granter, When: when, Reason: reason}
 	newPoint.Increase = delta == 1

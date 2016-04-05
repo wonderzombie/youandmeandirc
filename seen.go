@@ -10,8 +10,16 @@ import (
 )
 
 type SeenInfo struct {
-	msg irc.Message
-	t   time.Time
+	Message   irc.Message
+	Timestamp time.Time
+}
+
+type SeenTrigger struct {
+	SeenInfo map[string]SeenInfo
+}
+
+func (t *SeenTrigger) Id() TriggerId {
+	return TriggerId("seen")
 }
 
 func (bot *IrcBot) seenListener() (seen Listener) {
@@ -42,7 +50,7 @@ func (bot *IrcBot) seenListener() (seen Listener) {
 		out := fmt.Sprintf("Sorry, haven't seen %v.", who)
 		prev, ok := bot.seenList[who]
 		if ok {
-			out = fmt.Sprintf("I last saw %v at %v, saying \"%v\".", who, prev.t, prev.msg.Text)
+			out = fmt.Sprintf("I last saw %v at %v, saying \"%v\".", who, prev.Timestamp, prev.Message.Text)
 		}
 		bot.Say(msg.Channel, out)
 		trap = true
@@ -56,12 +64,12 @@ func (bot *IrcBot) seenListener() (seen Listener) {
 
 // SeenModule encompasses the Seen lookup, a table containing when IRC nicks were last seen and what they were saying.
 type SeenModule struct {
-	seenMap map[string]SeenInfo
+	SeenMap map[string]SeenInfo
 }
 
 // Initializes SeenModule.
 func (sm *SeenModule) init() {
-	sm.seenMap = make(map[string]SeenInfo)
+	sm.SeenMap = make(map[string]SeenInfo)
 }
 
 func (sm *SeenModule) accepts() []irc.Command {
