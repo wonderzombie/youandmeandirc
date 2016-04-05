@@ -18,7 +18,8 @@ type Conn struct {
 	conn   net.Conn
 	reader *bufio.Reader
 
-	host, port string
+	host string
+	port string
 }
 
 // send transmits a command to the currently connected server.
@@ -37,7 +38,7 @@ func (irc Conn) sendfln(format string, a ...interface{}) error {
 }
 
 // register sends the PASS, NICK, and USER commands.
-func (irc Conn) register() {
+func (irc Conn) register() error {
 	messages := []string{
 		// Pass, Nick, then User. This order matters!
 		newPassMsg(irc.pass),
@@ -48,8 +49,11 @@ func (irc Conn) register() {
 	for _, m := range messages {
 		if err := irc.send(m); err != nil {
 			log.Println("Error:", err)
+			return err
 		}
 	}
+
+	return nil
 }
 
 /// Composing various kinds of messages.
@@ -126,7 +130,7 @@ func (irc Conn) Disconnect() error {
 }
 
 // Connect initiates the IRC protocol with the given credentails.
-func Connect(n net.Conn, nick, realname, username, pass string) *Conn {
+func Connect(n net.Conn, nick, realname, username, pass string) (*Conn, error) {
 	c := &Conn{
 		conn:     n,
 		reader:   bufio.NewReader(n),
@@ -135,6 +139,8 @@ func Connect(n net.Conn, nick, realname, username, pass string) *Conn {
 		username: username,
 		pass:     pass,
 	}
-	c.register()
-	return c
+	if err := c.register(); err != nil {
+		return nil, err
+	}
+	return c, nil
 }

@@ -11,6 +11,14 @@ import (
 	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
+type EventCode int
+
+const (
+	Pass EventCode = 1 + iota
+	Fired
+	Trap
+)
+
 // ConnectFn is used to generate connections.
 type ConnectFn func() (*irc.Conn, error)
 
