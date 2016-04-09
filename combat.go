@@ -8,6 +8,21 @@ import (
 	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
+type CombatTrigger struct{}
+
+func (t CombatTrigger) Id() TriggerId {
+	return TriggerId("combat")
+}
+
+func (t CombatTrigger) Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) ResultCode {
+	fn := bot.combatListener()
+	fired, _ := fn(msg)
+	if fired {
+		return Fired
+	}
+	return Pass
+}
+
 func (bot *IrcBot) combatListener() (combat Listener) {
 	attacks := []string{
 		"beat",

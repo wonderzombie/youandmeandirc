@@ -8,6 +8,21 @@ import (
 	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
+type SleepTrigger struct{}
+
+func (t SleepTrigger) Id() TriggerId {
+	return TriggerId("combat")
+}
+
+func (t SleepTrigger) Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) ResultCode {
+	fn := bot.sleepListener()
+	fired, _ := fn(msg)
+	if fired {
+		return Fired
+	}
+	return Pass
+}
+
 func (bot *IrcBot) sleepListener() (sleep Listener) {
 	sleepMinutes := time.Duration(5) * time.Minute
 	var sleptAt time.Time

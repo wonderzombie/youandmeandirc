@@ -9,6 +9,21 @@ import (
 	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
+type RegexTrigger struct{}
+
+func (t RegexTrigger) Id() TriggerId {
+	return TriggerId("combat")
+}
+
+func (t RegexTrigger) Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) ResultCode {
+	fn := bot.combatListener()
+	fired, _ := fn(msg)
+	if fired {
+		return Fired
+	}
+	return Pass
+}
+
 func searchReplForRegex(rgx string) (search, repl string, ok bool) {
 	// Need three slashes for s/foo/bar/. Don't want to try parsing escape sequences and whatnot.
 	if !strings.HasPrefix(rgx, "s/") || !strings.HasSuffix(rgx, "/") {

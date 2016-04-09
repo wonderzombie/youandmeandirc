@@ -35,7 +35,7 @@ func main() {
 
 	bot, err := irclib.NewBot()
 	if err != nil {
-		log.Fatalf("Unable to create bot:", err)
+		log.Fatalln("Unable to create bot:", err)
 	}
 
 	addr := net.JoinHostPort(*host, *port)
@@ -45,6 +45,9 @@ func main() {
 	// which can generate net.Conn items for it.
 	n, _ := net.DialTimeout("tcp", addr, timeout)
 	// defer conn.Close()
-	c := irc.Connect(n, *nick, "...", *username, *pass)
+	c, err := irc.Connect(n, *nick, "...", *username, *pass)
+	if err != nil {
+		log.Fatalln("Unable to connect:", err)
+	}
 	bot.Start(c)
 }

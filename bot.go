@@ -11,10 +11,10 @@ import (
 	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
-type EventCode int
+type ResultCode int
 
 const (
-	Pass EventCode = 1 + iota
+	Pass ResultCode = 1 + iota
 	Fired
 	Trap
 )
@@ -61,10 +61,10 @@ type TriggerId string
 // on your struct is the API for other modules to interact with yours.
 type Trigger interface {
 	Id() TriggerId
-	Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) bool
+	Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) ResultCode
 }
 
-func (bot *IrcBot) init() (e error) {
+func (bot *IrcBot) init() error {
 	bot.listeners = []Listener{
 		bot.sleepListener(), // This must come first.
 		bot.joinListener(),
@@ -79,6 +79,19 @@ func (bot *IrcBot) init() (e error) {
 	bot.namesSet = make(map[string]bool)
 	bot.healthList = make(map[string]int)
 	return nil
+}
+
+// registerDefaults is a temporary method until I replace the old API.
+func (bot *IrcBot) registerDefaults() {
+	bot.RegisterAll(
+		// This one should come first, if it's to abort all the rest.
+		SleepTrigger{},
+		JoinPartTrigger{},
+		RegexTrigger{},
+		CombatTrigger{},
+		ScoreTrigger{},
+		SeenTrigger{},
+	)
 }
 
 func (bot *IrcBot) Register(t Trigger) {
@@ -134,21 +147,21 @@ func (bot *IrcBot) pingListener() (pong Listener) {
 	return
 }
 
-type NamesTrigger struct {
+type JoinPartTrigger struct {
 	NamesSet map[string]bool
 }
 
-func (t *NamesTrigger) Id() TriggerId {
+func (t JoinPartTrigger) Id() TriggerId {
 	return TriggerId("namelist")
 }
 
-func (t *NamesTrigger) Fire(bot *IrcBot, msg irc.Message, ids []TriggerId) bool {
+func (t JoinPartTrigger) Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) ResultCode {
 	if msg.Command != irc.Join && msg.Command != irc.Part {
-		return false
+		return Pass
 	}
 
 	if msg.Nick == bot.irc.Nick() {
-		return false
+		return Pass
 	}
 
 	_, ok := t.NamesSet[msg.Source]
@@ -157,13 +170,12 @@ func (t *NamesTrigger) Fire(bot *IrcBot, msg irc.Message, ids []TriggerId) bool 
 		t.NamesSet[msg.Nick] = false
 	}
 
-	//
 	if !ok {
 		log.Println("Adding nick to list of names:", msg.Nick)
 		t.NamesSet[msg.Nick] = true
 	}
 
-	return true
+	return Fired
 }
 
 func (bot *IrcBot) joinListener() (join Listener) {
@@ -255,8 +267,12 @@ func (bot *IrcBot) onNameListener() (name Listener) {
 func (bot *IrcBot) runTriggers(msg irc.Message) {
 	var triggered []TriggerId
 	for id, t := range bot.triggers {
-		if fired := t.Fire(msg, bot, triggered); fired {
+		res := t.Fire(msg, bot, triggered)
+		switch res {
+		case Fired:
 			triggered = append(triggered, id)
+		case Trap:
+			return
 		}
 	}
 }
@@ -329,6 +345,7 @@ func (bot *IrcBot) Say(channel, out string) {
 // Creates a new bot.
 func NewBot() (*IrcBot, error) {
 	bot := new(IrcBot)
+
 	if err := bot.init(); err != nil {
 		return nil, err
 	}

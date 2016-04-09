@@ -9,6 +9,21 @@ import (
 	"github.com/wonderzombie/youandmeandirc/irc"
 )
 
+type ScoreTrigger struct{}
+
+func (t ScoreTrigger) Id() TriggerId {
+	return TriggerId("score")
+}
+
+func (t ScoreTrigger) Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) ResultCode {
+	fn := bot.scoreListener()
+	fired, _ := fn(msg)
+	if fired {
+		return Fired
+	}
+	return Pass
+}
+
 type Point struct {
 	Granter string
 	When    time.Time

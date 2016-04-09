@@ -18,8 +18,17 @@ type SeenTrigger struct {
 	SeenInfo map[string]SeenInfo
 }
 
-func (t *SeenTrigger) Id() TriggerId {
+func (t SeenTrigger) Id() TriggerId {
 	return TriggerId("seen")
+}
+
+func (t SeenTrigger) Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) ResultCode {
+	fn := bot.seenListener()
+	fired, _ := fn(msg)
+	if fired {
+		return Fired
+	}
+	return Pass
 }
 
 func (bot *IrcBot) seenListener() (seen Listener) {
