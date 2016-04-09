@@ -79,25 +79,24 @@ func verify(tt *MessageTest, mm *Message) []string {
 	return errors
 }
 
-var whoIsTests = []struct {
-	Source string // input
-	User   string
-	Nick   string
-}{
-	{
-		Source: ":foonick!~foouser@127-0-0-buh.foo.baz",
-		User:   "foouser",
-		Nick:   "foonick",
-	},
-	{
-		Source: ":server",
-		User:   "",
-		Nick:   "server",
-	},
-}
-
 func TestWhoIs(t *testing.T) {
-	for _, test := range whoIsTests {
+	tests := []struct {
+		Source string // input
+		User   string
+		Nick   string
+	}{
+		{
+			Source: ":foonick!~foouser@127-0-0-buh.foo.baz",
+			User:   "foouser",
+			Nick:   "foonick",
+		},
+		{
+			Source: ":server",
+			User:   "",
+			Nick:   "server",
+		},
+	}
+	for _, test := range tests {
 		user, nick := whoIs(test.Source)
 		if user != test.User || nick != test.Nick {
 			t.Errorf("whoIs(%q) => %q, %q, wanted %q, %q", test.Source, user, nick, test.User, test.Nick)
@@ -107,7 +106,7 @@ func TestWhoIs(t *testing.T) {
 }
 
 func TestSplitMsg(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		Message string
 		Prefix  string
 		Postfix string
