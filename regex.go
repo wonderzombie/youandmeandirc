@@ -12,7 +12,7 @@ import (
 type RegexTrigger struct{}
 
 func (t RegexTrigger) Id() TriggerId {
-	return TriggerId("combat")
+	return TriggerId("regex")
 }
 
 func (t RegexTrigger) Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) ResultCode {
@@ -24,18 +24,30 @@ func (t RegexTrigger) Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) Result
 	return Pass
 }
 
-func searchReplForRegex(rgx string) (search, repl string, ok bool) {
-	// Need three slashes for s/foo/bar/. Don't want to try parsing escape sequences and whatnot.
-	if !strings.HasPrefix(rgx, "s/") || !strings.HasSuffix(rgx, "/") {
-		return
+type RegexResult struct {
+	search  string
+	replace string
+}
+
+func (r *RegexResult) Empty() bool {
+	return r.search == ""
+}
+
+func hasRegex(msg string) *RegexResult {
+	words := strings.Fields(msg)
+	for _, word := range words {
+		if strings.HasPrefix(word, "s/") && strings.HasSuffix(word, "/") {
+			// The format:
+			//   s/foo/bar/
+			//    ^   ^   ^
+			parts := strings.Split(msg, "/")
+			return &RegexResult{
+				search:  parts[1],
+				replace: parts[2],
+			}
+		}
 	}
-	reParts := strings.Split(rgx, "/")
-	if len(reParts) != 4 {
-		return
-	}
-	search, repl = reParts[1], reParts[2]
-	ok = true
-	return
+	return &RegexResult{}
 }
 
 func (bot *IrcBot) regexListener() (l Listener) {
@@ -52,13 +64,13 @@ func (bot *IrcBot) regexListener() (l Listener) {
 		parts := strings.SplitN(msg.Text, " ", 2)
 		head := parts[0]
 
-		search, repl, ok := searchReplForRegex(head)
-		if !ok {
+		res := hasRegex(head)
+		if res.Empty() {
 			log.Printf("Doesn't look like a regex: %q\n", head)
 			return
 		}
 
-		re, err := regexp.Compile(search)
+		re, err := regexp.Compile(res.search)
 		if err != nil {
 			log.Printf("Invalid regex %q: %v", head, err)
 			return
@@ -71,7 +83,7 @@ func (bot *IrcBot) regexListener() (l Listener) {
 			return
 		}
 
-		replaced := re.ReplaceAllString(seen.Message.Text, repl)
+		replaced := re.ReplaceAllString(seen.Message.Text, res.replace)
 		chat := fmt.Sprintf("%v actually meant: %v", msg.Nick, replaced)
 		bot.irc.Say(msg.Channel, chat)
 
