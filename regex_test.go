@@ -5,23 +5,31 @@ import "testing"
 func TestHasRegex(t *testing.T) {
 	tests := []struct {
 		message string
-		want    *RegexResult
+		want    *Replacement
 	}{
 		{
 			"whoops I meant s/foo/bar/",
-			&RegexResult{"foo", "bar"},
+			&Replacement{"foo", "bar"},
 		},
 		{
 			"this regex here /foo/bar/ has no leading s",
-			&RegexResult{},
+			&Replacement{},
 		},
 		{
 			"no trailing slash here s/foo/bar",
-			&RegexResult{},
+			&Replacement{},
 		},
 		{
 			"this will fail probably s/foo// but who knows",
-			&RegexResult{"foo", ""},
+			&Replacement{"foo", ""},
+		},
+		{
+			"this one is misleading/confusing/evil s/evil/good/",
+			&Replacement{"evil", "good"},
+		},
+		{
+			"now s/foo/bar/ there are two s/evil/good/ regexen",
+			&Replacement{"foo", "bar"},
 		},
 	}
 

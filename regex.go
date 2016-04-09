@@ -24,30 +24,30 @@ func (t RegexTrigger) Fire(msg irc.Message, bot *IrcBot, ids []TriggerId) Result
 	return Pass
 }
 
-type RegexResult struct {
+type Replacement struct {
 	search  string
 	replace string
 }
 
-func (r *RegexResult) Empty() bool {
+func (r *Replacement) Empty() bool {
 	return r.search == ""
 }
 
-func hasRegex(msg string) *RegexResult {
+func hasRegex(msg string) *Replacement {
 	words := strings.Fields(msg)
 	for _, word := range words {
 		if strings.HasPrefix(word, "s/") && strings.HasSuffix(word, "/") {
 			// The format:
 			//   s/foo/bar/
 			//    ^   ^   ^
-			parts := strings.Split(msg, "/")
-			return &RegexResult{
+			parts := strings.Split(word, "/")
+			return &Replacement{
 				search:  parts[1],
 				replace: parts[2],
 			}
 		}
 	}
-	return &RegexResult{}
+	return &Replacement{}
 }
 
 func (bot *IrcBot) regexListener() (l Listener) {
