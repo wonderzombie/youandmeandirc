@@ -29,11 +29,8 @@ type Replacement struct {
 	replace string
 }
 
-func (r *Replacement) Empty() bool {
-	return r.search == ""
-}
-
-func hasRegex(msg string) *Replacement {
+func regex(msg string) *Replacement {
+	// This means we don't support spaces in regexen.
 	words := strings.Fields(msg)
 	for _, word := range words {
 		if strings.HasPrefix(word, "s/") && strings.HasSuffix(word, "/") {
@@ -47,7 +44,8 @@ func hasRegex(msg string) *Replacement {
 			}
 		}
 	}
-	return &Replacement{}
+	return nil
+}
 }
 
 func (bot *IrcBot) regexListener() (l Listener) {
@@ -64,15 +62,9 @@ func (bot *IrcBot) regexListener() (l Listener) {
 		parts := strings.SplitN(msg.Text, " ", 2)
 		head := parts[0]
 
-		res := hasRegex(head)
-		if res.Empty() {
+		res := regex(head)
+		if res == nil {
 			log.Printf("Doesn't look like a regex: %q\n", head)
-			return
-		}
-
-		re, err := regexp.Compile(res.search)
-		if err != nil {
-			log.Printf("Invalid regex %q: %v", head, err)
 			return
 		}
 
@@ -80,6 +72,12 @@ func (bot *IrcBot) regexListener() (l Listener) {
 		seen, ok := bot.seenList[msg.Nick]
 		if !ok {
 			log.Printf("User supplied regex but they haven't been seen until now: %v", msg.Nick)
+			return
+		}
+
+		re, err := regexp.Compile(res.search)
+		if err != nil {
+			log.Printf("Invalid regex %q: %v", head, err)
 			return
 		}
 

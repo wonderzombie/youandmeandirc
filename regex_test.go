@@ -1,6 +1,9 @@
 package youandmeandirc
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestHasRegex(t *testing.T) {
 	tests := []struct {
@@ -13,11 +16,11 @@ func TestHasRegex(t *testing.T) {
 		},
 		{
 			"this regex here /foo/bar/ has no leading s",
-			&Replacement{},
+			nil,
 		},
 		{
 			"no trailing slash here s/foo/bar",
-			&Replacement{},
+			nil,
 		},
 		{
 			"this will fail probably s/foo// but who knows",
@@ -31,13 +34,31 @@ func TestHasRegex(t *testing.T) {
 			"now s/foo/bar/ there are two s/evil/good/ regexen",
 			&Replacement{"foo", "bar"},
 		},
+		// {
+		// 	"now s/foo and/bar and/ is the worst regex",
+		// 	&Replacement{"foo and", "bar and"},
+		// },
+		{
+			"",
+			nil,
+		},
 	}
 
 	for _, test := range tests {
-		got := hasRegex(test.message)
+		got := regex(test.message)
 		want := test.want
-		if got.search != want.search && got.replace != want.replace {
-			t.Errorf("hasRegex(%q) => %s; want %s", test.message, got, want)
+		if got != nil && test.want == nil || !reflect.DeepEqual(got, want) {
+			t.Errorf("regex(%q) => %q; want %q", test.message, got, want)
 		}
 	}
 }
+
+// func TestRewrite(t *testing.T) {
+// 	tests := []struct {
+// 		orig string
+// 		r    string
+// 		want string
+// 	}{
+// 		{"hello wrold", "s/wrold/world", "hello world"},
+// 	}
+// }
