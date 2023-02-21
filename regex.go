@@ -46,7 +46,6 @@ func regex(msg string) *Replacement {
 	}
 	return nil
 }
-}
 
 func (bot *IrcBot) regexListener() (l Listener) {
 	l = func(msg irc.Message) (fired, trap bool) {
